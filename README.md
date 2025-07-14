@@ -91,7 +91,68 @@ GameBargain/
 - Redis 6以上
 - Node.js 18以上（フロントエンド開発用）
 
-### 環境構築
+### 🚀 クイックスタート（Makefile使用）
+
+最も簡単な方法で開発環境をセットアップできます：
+
+**pip環境の場合：**
+```bash
+# 1. リポジトリのクローン
+git clone https://github.com/saboriyo/GameBargain.git
+cd GameBargain
+
+# 2. 開発環境のセットアップ（依存関係インストール + 環境変数設定）
+make setup-dev
+
+# 3. 環境変数の編集（API キーなどを設定）
+nano .env  # または任意のエディタで編集
+
+# 4. データベースの初期化
+make init-db
+
+# 5. 開発サーバーの起動
+make dev
+```
+
+**conda環境の場合（推奨）：**
+```bash
+# 1. リポジトリのクローン
+git clone https://github.com/saboriyo/GameBargain.git
+cd GameBargain
+
+# 2. conda環境での開発環境セットアップ
+make setup-dev-conda
+
+# 3. 環境のアクティベート
+conda activate gamebargain
+
+# 4. 環境変数の編集（API キーなどを設定）
+nano .env  # または任意のエディタで編集
+
+# 5. データベースの初期化
+make init-db
+
+# 6. 開発サーバーの起動
+make dev
+```
+
+利用可能なMakeコマンド：
+```bash
+make help               # 利用可能なコマンド一覧を表示
+make setup-dev          # 開発環境セットアップ（pip）
+make setup-dev-conda    # 開発環境セットアップ（conda）
+make init-db            # データベース初期化
+make dev               # 開発サーバー起動
+make test              # テスト実行
+make lint              # コード品質チェック
+make format            # コード整形
+make docker-up         # Docker環境起動
+make clean             # 一時ファイル削除
+```
+
+### 📋 手動セットアップ
+
+詳細な制御が必要な場合は手動でセットアップできます：
 
 1. **リポジトリのクローン**
 ```bash
@@ -101,13 +162,22 @@ cd GameBargain
 
 2. **仮想環境の作成・有効化**
 ```bash
+# venv使用の場合
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# conda使用の場合（推奨）
+conda env create -f environment.yml
+conda activate gamebargain
 ```
 
 3. **依存関係のインストール**
 ```bash
+# conda環境でpipを使用（推奨）
 pip install -r requirements.txt
+
+# または conda-forgeチャンネルを使用
+conda install -c conda-forge flask sqlalchemy celery redis-py requests python-dotenv pytest
 ```
 
 4. **環境変数の設定**
@@ -139,10 +209,14 @@ celery -A app.celery beat --loglevel=info
 flask run
 ```
 
-### Docker利用の場合
+### 🐳 Docker利用の場合
 
 ```bash
+# Docker環境での起動
 docker-compose up -d
+
+# または Makefile経由
+make docker-up
 ```
 
 ## 🎮 使用方法

@@ -7,15 +7,18 @@
 help:
 	@echo "GameBargain - ゲーム価格比較サービス"
 	@echo "使用可能なコマンド:"
-	@echo "  make install     - 依存関係をインストール"
-	@echo "  make dev        - 開発サーバーを起動"
-	@echo "  make test       - テストを実行"
-	@echo "  make lint       - コード品質チェック"
-	@echo "  make format     - コード整形"
-	@echo "  make docker-build - Dockerイメージをビルド"
-	@echo "  make docker-up   - Docker環境を起動"
-	@echo "  make docker-down - Docker環境を停止"
-	@echo "  make clean      - 一時ファイルを削除"
+	@echo "  make install        - 依存関係をインストール（pip）"
+	@echo "  make install-conda  - 依存関係をインストール（conda）"
+	@echo "  make setup-dev      - 開発環境をセットアップ（pip）"
+	@echo "  make setup-dev-conda - 開発環境をセットアップ（conda）"
+	@echo "  make dev           - 開発サーバーを起動"
+	@echo "  make test          - テストを実行"
+	@echo "  make lint          - コード品質チェック"
+	@echo "  make format        - コード整形"
+	@echo "  make docker-build  - Dockerイメージをビルド"
+	@echo "  make docker-up     - Docker環境を起動"
+	@echo "  make docker-down   - Docker環境を停止"
+	@echo "  make clean         - 一時ファイルを削除"
 
 # 依存関係のインストール
 install:
@@ -24,11 +27,26 @@ install:
 	pip install -r requirements.txt
 	@echo "インストール完了!"
 
+# conda環境での依存関係インストール
+install-conda:
+	@echo "conda環境で依存関係をインストール中..."
+	conda env create -f environment.yml
+	@echo "conda環境のインストール完了!"
+	@echo "conda activate gamebargain で環境をアクティベートしてください"
+
 # 開発環境のセットアップ
 setup-dev: install
 	@echo "開発環境をセットアップ中..."
 	cp -n .env.example .env || true
 	@echo "開発環境セットアップ完了!"
+	@echo ".envファイルを編集して必要な設定値を入力してください"
+
+# conda環境での開発環境セットアップ
+setup-dev-conda: install-conda
+	@echo "conda開発環境をセットアップ中..."
+	cp -n .env.example .env || true
+	@echo "conda開発環境セットアップ完了!"
+	@echo "conda activate gamebargain で環境をアクティベートしてから"
 	@echo ".envファイルを編集して必要な設定値を入力してください"
 
 # データベースの初期化

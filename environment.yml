@@ -1,0 +1,32 @@
+name: gamebargain
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - flask
+  - sqlalchemy
+  - redis-py
+  - requests
+  - numpy
+  - pandas
+  - beautifulsoup4
+  - pytest
+  - black
+  - flake8
+  - pip
+  - pip:
+    - Flask-SQLAlchemy>=3.1.0
+    - Flask-Migrate>=4.0.0
+    - Flask-Login>=0.6.0
+    - Flask-Mail>=0.9.0
+    - Flask-Caching>=2.1.0
+    - psycopg2-binary>=2.9.0
+    - celery>=5.5.0
+    - discord.py>=2.3.0
+    - selenium>=4.15.0
+    - python-dotenv>=1.0.0
+    - marshmallow>=3.20.0
+    - pytest-flask>=1.3.0
+    - pytest-cov>=4.1.0
+    - gunicorn>=21.2.0
