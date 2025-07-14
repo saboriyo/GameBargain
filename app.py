@@ -72,20 +72,46 @@ def create_app(config_name=None):
 app = create_app()
 celery = make_celery(app)
 
-# Modelsのインポート（テーブル作成のため）
-from models import User, Game, Store, Price, Favorite, Notification
+# Modelsのグローバル変数を初期化
+User = None
+Game = None
+Store = None
+Price = None
+Favorite = None
+Notification = None
+
+# アプリケーションコンテキスト内でモデルを作成
+with app.app_context():
+    from models import create_models
+    models = create_models(db)
+    
+    # グローバル変数に設定
+    User = models['User']
+    Game = models['Game']  
+    Store = models['Store']
+    Price = models['Price']
+    Favorite = models['Favorite']
+    Notification = models['Notification']
 
 
 @login_manager.user_loader
 def load_user(user_id):
     """ユーザーローダー"""
+    if User is None:
+        return None
     return User.query.get(int(user_id))
 
 
 if __name__ == '__main__':
     with app.app_context():
+        # データベースディレクトリの作成
+        import os
+        os.makedirs('data', exist_ok=True)
+        
         # テーブル作成
         db.create_all()
+        print("データベースが正常に初期化されました。")
     
     # アプリケーション起動
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("GameBargainアプリケーションを起動しています...")
+    app.run(debug=True, host='0.0.0.0', port=8000)

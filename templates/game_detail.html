@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.title }} - GameBargain{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row">
+        <!-- ゲーム情報 -->
+        <div class="col-lg-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">ホーム</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.search') }}">検索</a></li>
+                    <li class="breadcrumb-item active">{{ game.title }}</li>
+                </ol>
+            </nav>
+
+            <div class="card mb-4">
+                <div class="row g-0">
+                    <div class="col-md-4">
+                        <img src="{{ game.image_url }}" class="img-fluid rounded-start h-100" 
+                             alt="{{ game.title }}" style="object-fit: cover;">
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card-body">
+                            <h1 class="card-title h3">{{ game.title }}</h1>
+                            <p class="text-muted mb-2">{{ game.developer }}</p>
+                            <p class="card-text">{{ game.description }}</p>
+                            
+                            <div class="d-flex gap-2 mt-3">
+                                <button class="btn btn-outline-primary" onclick="addToFavorites({{ game.id }})">
+                                    <i class="fas fa-heart me-1"></i>お気に入り追加
+                                </button>
+                                <button class="btn btn-outline-info" onclick="setNotification({{ game.id }})">
+                                    <i class="fas fa-bell me-1"></i>価格通知設定
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 価格履歴グラフ -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>価格推移（過去3ヶ月）
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="priceChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- サイドバー -->
+        <div class="col-lg-4">
+            <!-- 現在価格 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tags me-2"></i>現在価格
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for store, price_info in game.prices.items() %}
+                    <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                        <div>
+                            {% if store == 'steam' %}
+                                <i class="fab fa-steam-symbol text-info me-2"></i>Steam
+                            {% elif store == 'epic' %}
+                                <i class="fas fa-gamepad text-warning me-2"></i>Epic Games
+                            {% endif %}
+                        </div>
+                        <div class="text-end">
+                            {% if price_info.on_sale %}
+                                <div>
+                                    <span class="badge bg-danger">{{ price_info.discount }}% OFF</span>
+                                </div>
+                                <div>
+                                    <small class="text-decoration-line-through text-muted">¥{{ "{:,}".format(price_info.regular_price) }}</small>
+                                </div>
+                            {% endif %}
+                            <div class="fw-bold text-primary">¥{{ "{:,}".format(price_info.price) }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- 最安値表示 -->
+                    {% set min_price = game.prices.values() | map(attribute='price') | min %}
+                    {% for store, price_info in game.prices.items() %}
+                        {% if price_info.price == min_price %}
+                            <div class="alert alert-success mt-3 mb-0">
+                                <i class="fas fa-trophy me-2"></i>
+                                <strong>最安値: 
+                                    {% if store == 'steam' %}Steam{% elif store == 'epic' %}Epic Games{% endif %}
+                                </strong>
+                                <div class="h5 mb-0">¥{{ "{:,}".format(min_price) }}</div>
+                            </div>
+                            {% break %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 購入リンク -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-cart me-2"></i>購入リンク
+                    </h5>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    {% for store, price_info in game.prices.items() %}
+                        {% if store == 'steam' %}
+                            <a href="https://store.steampowered.com/app/1091500/" 
+                               target="_blank" class="btn btn-info">
+                                <i class="fab fa-steam-symbol me-2"></i>
+                                Steamで購入 - ¥{{ "{:,}".format(price_info.price) }}
+                            </a>
+                        {% elif store == 'epic' %}
+                            <a href="https://store.epicgames.com/" 
+                               target="_blank" class="btn btn-warning">
+                                <i class="fas fa-gamepad me-2"></i>
+                                Epic Gamesで購入 - ¥{{ "{:,}".format(price_info.price) }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 価格変動履歴 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>価格変動履歴
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for history in game.price_history %}
+                    <div class="d-flex justify-content-between small py-1">
+                        <span>{{ history.date }}</span>
+                        <div>
+                            <span class="me-2">Steam: ¥{{ "{:,}".format(history.steam) }}</span>
+                            <span>Epic: ¥{{ "{:,}".format(history.epic) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// 価格推移グラフ
+const ctx = document.getElementById('priceChart').getContext('2d');
+const priceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ game.price_history | map(attribute='date') | list | tojson }},
+        datasets: [{
+            label: 'Steam',
+            data: {{ game.price_history | map(attribute='steam') | list | tojson }},
+            borderColor: '#00adee',
+            backgroundColor: 'rgba(0, 173, 238, 0.1)',
+            tension: 0.1
+        }, {
+            label: 'Epic Games',
+            data: {{ game.price_history | map(attribute='epic') | list | tojson }},
+            borderColor: '#0078f3',
+            backgroundColor: 'rgba(0, 120, 243, 0.1)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: false,
+                ticks: {
+                    callback: function(value) {
+                        return '¥' + value.toLocaleString();
+                    }
+                }
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ¥' + context.parsed.y.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+function addToFavorites(gameId) {
+    alert('お気に入り機能は開発中です。ゲームID: ' + gameId);
+}
+
+function setNotification(gameId) {
+    alert('価格通知機能は開発中です。ゲームID: ' + gameId);
+}
+</script>
+{% endblock %}

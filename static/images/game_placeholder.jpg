@@ -1,0 +1,4 @@
+# Placeholder Image
+# This file represents a placeholder for game images
+# In a real application, you would have actual game cover images here
+PLACEHOLDER_IMAGE=true

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}検索結果 - GameBargain{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-search me-2"></i>ゲーム検索
+            </h1>
+            
+            <!-- 検索フォーム -->
+            <form action="{{ url_for('main.search') }}" method="GET" class="mb-4">
+                <div class="input-group input-group-lg">
+                    <input type="text" name="q" class="form-control" 
+                           placeholder="ゲームタイトルを検索..." 
+                           value="{{ query }}" required>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>検索
+                    </button>
+                </div>
+            </form>
+
+            {% if query %}
+                <h2 class="mb-3">「{{ query }}」の検索結果</h2>
+                
+                {% if games %}
+                    <div class="row g-4">
+                        {% for game in games %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card game-card h-100">
+                                <img src="{{ game.image_url }}" 
+                                     class="card-img-top" alt="{{ game.title }}">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ game.title }}</h5>
+                                    <p class="card-text">
+                                        <small class="text-muted">{{ game.developer }}</small>
+                                    </p>
+                                    
+                                    <!-- 価格情報 -->
+                                    <div class="price-section mb-3">
+                                        {% if game.prices.steam %}
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div>
+                                                <i class="fab fa-steam-symbol text-info me-1"></i>
+                                                <strong>Steam</strong>
+                                            </div>
+                                            <div>
+                                                {% if game.prices.steam.on_sale %}
+                                                    <span class="badge bg-danger">{{ game.prices.steam.discount }}% OFF</span>
+                                                    <span class="text-decoration-line-through text-muted small">¥{{ "{:,}".format(game.prices.steam.price * 2) }}</span>
+                                                {% endif %}
+                                                <span class="text-primary fw-bold">¥{{ "{:,}".format(game.prices.steam.price) }}</span>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if game.prices.epic %}
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div>
+                                                <i class="fas fa-gamepad text-warning me-1"></i>
+                                                <strong>Epic Games</strong>
+                                            </div>
+                                            <div>
+                                                {% if game.prices.epic.on_sale %}
+                                                    <span class="badge bg-danger">{{ game.prices.epic.discount }}% OFF</span>
+                                                    <span class="text-decoration-line-through text-muted small">¥{{ "{:,}".format(game.prices.epic.price * 2) }}</span>
+                                                {% endif %}
+                                                <span class="text-primary fw-bold">¥{{ "{:,}".format(game.prices.epic.price) }}</span>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- 最安値表示 -->
+                                    {% set min_price = [game.prices.steam.price, game.prices.epic.price] | min %}
+                                    {% if game.prices.steam.price == min_price %}
+                                        {% set best_store = "Steam" %}
+                                    {% else %}
+                                        {% set best_store = "Epic Games" %}
+                                    {% endif %}
+                                    
+                                    <div class="alert alert-success py-2">
+                                        <small>
+                                            <i class="fas fa-trophy me-1"></i>
+                                            最安値: {{ best_store }} - ¥{{ "{:,}".format(min_price) }}
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
+                                           class="btn btn-primary">詳細を見る</a>
+                                        <button class="btn btn-outline-secondary btn-sm" 
+                                                onclick="addToFavorites({{ game.id }})">
+                                            <i class="fas fa-heart me-1"></i>お気に入り
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-5x text-muted mb-3"></i>
+                        <h3 class="text-muted">検索結果が見つかりませんでした</h3>
+                        <p class="text-muted">別のキーワードで検索してみてください。</p>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-gamepad fa-5x text-muted mb-3"></i>
+                    <h3 class="text-muted">ゲームを検索してみましょう</h3>
+                    <p class="text-muted">上の検索ボックスにゲームタイトルを入力してください。</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addToFavorites(gameId) {
+    // お気に入り追加機能（今後実装）
+    alert('お気に入り機能は開発中です。ゲームID: ' + gameId);
+}
+</script>
+
+<style>
+.game-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+
+.price-section {
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
+</style>
+{% endblock %}

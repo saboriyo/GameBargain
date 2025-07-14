@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}GameBargain - ゲーム価格比較サービス{% endblock %}
+
+{% block content %}
+<div class="hero-section bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-3">
+                    <i class="fas fa-gamepad me-3"></i>GameBargain
+                </h1>
+                <p class="lead mb-4">
+                    Steam、Epic Games Store、Origin、Ubisoft Connectなど<br>
+                    複数のゲームプラットフォームの価格を比較し、<br>
+                    最安値でゲームを購入しよう！
+                </p>
+                
+                <!-- 検索フォーム -->
+                <form action="{{ url_for('main.search') }}" method="GET" class="d-flex mb-3">
+                    <input type="text" name="q" class="form-control form-control-lg me-2" 
+                           placeholder="ゲームタイトルを検索..." required>
+                    <button type="submit" class="btn btn-light btn-lg">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+            </div>
+            <div class="col-lg-6">
+                <div class="text-center">
+                    <i class="fas fa-chart-line fa-10x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container my-5">
+    <!-- 主な機能 -->
+    <section class="mb-5">
+        <h2 class="text-center mb-4">🎯 主な機能</h2>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-search fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">ゲーム検索・価格比較</h5>
+                        <p class="card-text">複数プラットフォームの価格を一括比較し、最安値を瞬時に発見。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">価格履歴・トレンド</h5>
+                        <p class="card-text">価格推移をグラフで視覚化し、最適な購入タイミングを把握。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fab fa-discord fa-3x text-info mb-3"></i>
+                        <h5 class="card-title">Discord Bot連携</h5>
+                        <p class="card-text">リアルタイム価格通知とBot検索で、いつでも最新情報をチェック。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- おすすめゲーム -->
+    <section class="mb-5">
+        <h2 class="text-center mb-4">🔥 今日のおすすめセール</h2>
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="card game-card">
+                    <img src="{{ url_for('static', filename='images/game_placeholder.jpg') }}" 
+                         class="card-img-top" alt="Cyberpunk 2077">
+                    <div class="card-body">
+                        <h5 class="card-title">Cyberpunk 2077</h5>
+                        <p class="card-text">
+                            <span class="badge bg-danger">50% OFF</span>
+                            <span class="text-decoration-line-through text-muted">¥6,000</span>
+                            <span class="text-primary fw-bold fs-5">¥3,000</span>
+                        </p>
+                        <p class="small text-muted">Steam</p>
+                        <a href="{{ url_for('main.game_detail', game_id=1) }}" class="btn btn-primary">詳細を見る</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="card game-card">
+                    <img src="{{ url_for('static', filename='images/game_placeholder.jpg') }}" 
+                         class="card-img-top" alt="The Witcher 3">
+                    <div class="card-body">
+                        <h5 class="card-title">The Witcher 3</h5>
+                        <p class="card-text">
+                            <span class="badge bg-danger">75% OFF</span>
+                            <span class="text-decoration-line-through text-muted">¥6,000</span>
+                            <span class="text-primary fw-bold fs-5">¥1,500</span>
+                        </p>
+                        <p class="small text-muted">Steam</p>
+                        <a href="{{ url_for('main.game_detail', game_id=2) }}" class="btn btn-primary">詳細を見る</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="card game-card">
+                    <img src="{{ url_for('static', filename='images/game_placeholder.jpg') }}" 
+                         class="card-img-top" alt="Red Dead Redemption 2">
+                    <div class="card-body">
+                        <h5 class="card-title">Red Dead Redemption 2</h5>
+                        <p class="card-text">
+                            <span class="badge bg-warning">33% OFF</span>
+                            <span class="text-decoration-line-through text-muted">¥7,500</span>
+                            <span class="text-primary fw-bold fs-5">¥5,000</span>
+                        </p>
+                        <p class="small text-muted">Epic Games</p>
+                        <a href="{{ url_for('main.game_detail', game_id=3) }}" class="btn btn-primary">詳細を見る</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 統計情報 -->
+    <section class="bg-light p-4 rounded">
+        <h2 class="text-center mb-4">📊 サービス統計</h2>
+        <div class="row text-center">
+            <div class="col-6 col-md-3">
+                <h3 class="text-primary">150+</h3>
+                <p class="text-muted">登録ゲーム数</p>
+            </div>
+            <div class="col-6 col-md-3">
+                <h3 class="text-success">50+</h3>
+                <p class="text-muted">利用ユーザー数</p>
+            </div>
+            <div class="col-6 col-md-3">
+                <h3 class="text-info">1,200</h3>
+                <p class="text-muted">本日の価格更新</p>
+            </div>
+            <div class="col-6 col-md-3">
+                <h3 class="text-warning">45</h3>
+                <p class="text-muted">本日の通知送信</p>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.hero-section {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.game-card {
+    transition: transform 0.2s;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+}
+
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+
+.fa-10x {
+    font-size: 10em !important;
+}
+</style>
+{% endblock %}

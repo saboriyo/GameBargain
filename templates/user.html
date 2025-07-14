@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}ユーザープロフィール - GameBargain{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-user me-2"></i>ユーザープロフィール</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <strong>ユーザー名:</strong>
+                        </div>
+                        <div class="col-sm-9">
+                            {{ user.username if user else 'ゲストユーザー' }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <strong>メールアドレス:</strong>
+                        </div>
+                        <div class="col-sm-9">
+                            {{ user.email if user else 'なし' }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <strong>登録日:</strong>
+                        </div>
+                        <div class="col-sm-9">
+                            {{ user.created_at.strftime('%Y年%m月%d日') if user and user.created_at else 'なし' }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <h5>お気に入りゲーム</h5>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                お気に入り機能は開発中です。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">
+                        <i class="fas fa-sign-out-alt me-1"></i>ログアウト
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -59,7 +59,8 @@ GameBargain/
 - **Chart.js**: グラフ表示
 
 ### Database
-- **PostgreSQL**: メインデータベース
+- **SQLite**: 開発環境用（簡単セットアップ）
+- **PostgreSQL**: 本番環境用
 
 ### External APIs
 - **Steam Web API**: Steam価格データ
@@ -86,9 +87,14 @@ GameBargain/
 ## 🔧 セットアップ
 
 ### 前提条件
+
+**最小要件（SQLite使用）:**
 - Python 3.11以上
-- PostgreSQL 14以上
-- Redis 6以上
+
+**完全な開発環境:**
+- Python 3.11以上
+- PostgreSQL 14以上（本番環境用）
+- Redis 6以上（本番環境用）
 - Node.js 18以上（フロントエンド開発用）
 
 ### 🚀 クイックスタート（Makefile使用）
@@ -104,14 +110,12 @@ cd GameBargain
 # 2. 開発環境のセットアップ（依存関係インストール + 環境変数設定）
 make setup-dev
 
-# 3. 環境変数の編集（API キーなどを設定）
+# 3. 環境変数の編集（必要に応じてAPI キーなどを設定）
+cp .env.example .env
 nano .env  # または任意のエディタで編集
 
-# 4. データベースの初期化
-make init-db
-
-# 5. 開発サーバーの起動
-make dev
+# 4. アプリケーション起動（SQLiteで自動初期化）
+python app.py
 ```
 
 **conda環境の場合（推奨）：**
@@ -126,15 +130,15 @@ make setup-dev-conda
 # 3. 環境のアクティベート
 conda activate gamebargain
 
-# 4. 環境変数の編集（API キーなどを設定）
+# 4. 環境変数の編集（必要に応じてAPI キーなどを設定）
+cp .env.example .env
 nano .env  # または任意のエディタで編集
 
-# 5. データベースの初期化
-make init-db
-
-# 6. 開発サーバーの起動
-make dev
+# 5. アプリケーション起動（SQLiteで自動初期化）
+python app.py
 ```
+
+🎉 **ブラウザで http://localhost:8000 にアクセスして動作確認！**
 
 利用可能なMakeコマンド：
 ```bash
@@ -153,6 +157,8 @@ make clean             # 一時ファイル削除
 ### 📋 手動セットアップ
 
 詳細な制御が必要な場合は手動でセットアップできます：
+
+#### 🚀 最小セットアップ（SQLite使用）
 
 1. **リポジトリのクローン**
 ```bash
@@ -173,40 +179,71 @@ conda activate gamebargain
 
 3. **依存関係のインストール**
 ```bash
-# conda環境でpipを使用（推奨）
 pip install -r requirements.txt
-
-# または conda-forgeチャンネルを使用
-conda install -c conda-forge flask sqlalchemy celery redis-py requests python-dotenv pytest
 ```
 
 4. **環境変数の設定**
 ```bash
 cp .env.example .env
-# .envファイルを編集して必要な設定値を入力
+# 基本的にはそのまま使用可能（SQLite設定済み）
+# 必要に応じて.envファイルを編集
+```
+
+5. **アプリケーションの起動**
+```bash
+python app.py
+```
+
+6. **ブラウザでアクセス**
+   - http://localhost:8000 でアプリケーションが利用可能
+
+#### 🔧 フルセットアップ（PostgreSQL + Redis使用）
+
+本番環境に近い構成で開発する場合：
+
+1. **上記1-3の手順を実行**
+
+2. **PostgreSQL・Redisのインストール・起動**
+```bash
+# macOS (Homebrew)
+brew install postgresql redis
+brew services start postgresql
+brew services start redis
+
+# Ubuntu/Debian
+sudo apt-get install postgresql redis-server
+sudo systemctl start postgresql
+sudo systemctl start redis-server
+```
+
+3. **データベースの作成**
+```bash
+createdb gamebargain
+```
+
+4. **環境変数の設定（PostgreSQL用）**
+```bash
+cp .env.example .env
+# .envファイルを編集してPostgreSQL接続情報を設定
 ```
 
 5. **データベースの初期化**
 ```bash
 flask db upgrade
-flask db-seed  # 初期データの投入
 ```
 
 6. **Redis・Celeryの起動**
 ```bash
-# ターミナル1: Redis
-redis-server
-
-# ターミナル2: Celery Worker
+# ターミナル1: Celery Worker
 celery -A app.celery worker --loglevel=info
 
-# ターミナル3: Celery Beat（スケジューラー）
+# ターミナル2: Celery Beat（スケジューラー）
 celery -A app.celery beat --loglevel=info
 ```
 
 7. **アプリケーションの起動**
 ```bash
-flask run
+python app.py
 ```
 
 ### 🐳 Docker利用の場合
@@ -219,10 +256,33 @@ docker-compose up -d
 make docker-up
 ```
 
+## ⚡ 超簡単セットアップ（SQLite使用）
+
+**最短5分でGameBargainを起動！**
+
+```bash
+# 1. クローン
+git clone https://github.com/saboriyo/GameBargain.git
+cd GameBargain
+
+# 2. 依存関係インストール
+pip install -r requirements.txt
+
+# 3. 環境変数設定
+cp .env.example .env
+
+# 4. 起動
+python app.py
+```
+
+✅ **完了！** http://localhost:8000 でアプリケーションが利用可能です。
+
+> **💡 Tip**: この方法では SQLite を使用するため、PostgreSQL や Redis のインストールは不要です。
+
 ## 🎮 使用方法
 
 ### Webアプリケーション
-1. ブラウザで `http://localhost:5000` にアクセス
+1. ブラウザで `http://localhost:8000` にアクセス
 2. ゲーム名を検索して価格比較
 3. お気に入り登録・価格監視設定
 4. Discord連携でリアルタイム通知
@@ -283,3 +343,47 @@ pytest
 ---
 
 **GameBargain** - あなたのゲーム購入をもっとお得に 🎮💰
+
+## 🗄️ データベース設定
+
+### SQLite（開発・テスト用）
+
+デフォルトでは SQLite を使用します。追加のセットアップは不要です：
+
+```bash
+# .envファイル（デフォルト設定）
+DATABASE_URL=sqlite:///data/gamebargain.db
+SQLALCHEMY_DATABASE_URI=sqlite:///data/gamebargain.db
+```
+
+**メリット:**
+- ✅ 簡単セットアップ（インストール不要）
+- ✅ ファイルベース（`data/gamebargain.db`）
+- ✅ 開発・プロトタイピングに最適
+
+**制限:**
+- ⚠️ 同時接続数に制限あり
+- ⚠️ 本番環境には不向き
+
+### PostgreSQL（本番用）
+
+本格的な開発や本番環境では PostgreSQL を推奨：
+
+```bash
+# .envファイル（PostgreSQL設定）
+DATABASE_URL=postgresql://username:password@localhost:5432/gamebargain
+SQLALCHEMY_DATABASE_URI=postgresql://username:password@localhost:5432/gamebargain
+```
+
+**PostgreSQL セットアップ:**
+```bash
+# macOS
+brew install postgresql
+brew services start postgresql
+createdb gamebargain
+
+# Ubuntu/Debian
+sudo apt-get install postgresql
+sudo systemctl start postgresql
+sudo -u postgres createdb gamebargain
+```
