@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@db:5432/gamebargain
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: flask run --host=0.0.0.0
+
+  worker:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/gamebargain
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: celery -A app.celery worker --loglevel=info
+
+  beat:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/gamebargain
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: celery -A app.celery beat --loglevel=info
+
+  discord-bot:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/gamebargain
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python discord_bot/bot.py
+
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: gamebargain
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
