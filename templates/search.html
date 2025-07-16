@@ -1,151 +1,470 @@
 {% extends "base.html" %}
 
-{% block title %}検索結果 - GameBargain{% endblock %}
+{% block title %}
+{% if query %}
+検索結果: {{ query }} - GameBargain
+{% else %}
+ゲーム検索 - GameBargain
+{% endif %}
+{% endblock %}
 
 {% block content %}
-<div class="container my-4">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="mb-4">
-                <i class="fas fa-search me-2"></i>ゲーム検索
-            </h1>
-            
-            <!-- 検索フォーム -->
-            <form action="{{ url_for('main.search') }}" method="GET" class="mb-4">
-                <div class="input-group input-group-lg">
-                    <input type="text" name="q" class="form-control" 
-                           placeholder="ゲームタイトルを検索..." 
-                           value="{{ query }}" required>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search me-1"></i>検索
-                    </button>
-                </div>
-            </form>
+<div class="container mt-4">
+    <!-- 検索フォーム -->
+    <div class="search-header mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <form method="GET" action="{{ url_for('main.search') }}" class="search-form">
+                    <div class="input-group input-group-lg">
+                        <input type="search" 
+                               class="form-control" 
+                               name="q" 
+                               value="{{ query or '' }}" 
+                               placeholder="ゲームタイトルで検索..."
+                               autocomplete="off">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="bi bi-search"></i> 検索
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-4">
+                <!-- フィルターボタン -->
+                <button class="btn btn-outline-secondary" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#searchFilters">
+                    <i class="bi bi-funnel me-2"></i>フィルター
+                </button>
+            </div>
+        </div>
+    </div>
 
-            {% if query %}
-                <h2 class="mb-3">「{{ query }}」の検索結果</h2>
-                
-                {% if games %}
-                    <div class="row g-4">
-                        {% for game in games %}
-                        <div class="col-md-6 col-lg-4">
-                            <div class="card game-card h-100">
-                                <img src="{{ game.image_url }}" 
-                                     class="card-img-top" alt="{{ game.title }}">
-                                <div class="card-body">
-                                    <h5 class="card-title">{{ game.title }}</h5>
-                                    <p class="card-text">
-                                        <small class="text-muted">{{ game.developer }}</small>
-                                    </p>
-                                    
-                                    <!-- 価格情報 -->
-                                    <div class="price-section mb-3">
-                                        {% if game.prices.steam %}
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <div>
-                                                <i class="fab fa-steam-symbol text-info me-1"></i>
-                                                <strong>Steam</strong>
-                                            </div>
-                                            <div>
-                                                {% if game.prices.steam.on_sale %}
-                                                    <span class="badge bg-danger">{{ game.prices.steam.discount }}% OFF</span>
-                                                    <span class="text-decoration-line-through text-muted small">¥{{ "{:,}".format(game.prices.steam.price * 2) }}</span>
-                                                {% endif %}
-                                                <span class="text-primary fw-bold">¥{{ "{:,}".format(game.prices.steam.price) }}</span>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        
-                                        {% if game.prices.epic %}
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <div>
-                                                <i class="fas fa-gamepad text-warning me-1"></i>
-                                                <strong>Epic Games</strong>
-                                            </div>
-                                            <div>
-                                                {% if game.prices.epic.on_sale %}
-                                                    <span class="badge bg-danger">{{ game.prices.epic.discount }}% OFF</span>
-                                                    <span class="text-decoration-line-through text-muted small">¥{{ "{:,}".format(game.prices.epic.price * 2) }}</span>
-                                                {% endif %}
-                                                <span class="text-primary fw-bold">¥{{ "{:,}".format(game.prices.epic.price) }}</span>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    
-                                    <!-- 最安値表示 -->
-                                    {% set min_price = [game.prices.steam.price, game.prices.epic.price] | min %}
-                                    {% if game.prices.steam.price == min_price %}
-                                        {% set best_store = "Steam" %}
-                                    {% else %}
-                                        {% set best_store = "Epic Games" %}
-                                    {% endif %}
-                                    
-                                    <div class="alert alert-success py-2">
-                                        <small>
-                                            <i class="fas fa-trophy me-1"></i>
-                                            最安値: {{ best_store }} - ¥{{ "{:,}".format(min_price) }}
-                                        </small>
-                                    </div>
-                                    
-                                    <div class="d-grid gap-2">
-                                        <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
-                                           class="btn btn-primary">詳細を見る</a>
-                                        <button class="btn btn-outline-secondary btn-sm" 
-                                                onclick="addToFavorites({{ game.id }})">
-                                            <i class="fas fa-heart me-1"></i>お気に入り
-                                        </button>
-                                    </div>
+    <!-- 検索フィルター -->
+    <div class="collapse {{ 'show' if has_filters else '' }}" id="searchFilters">
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('main.search') }}" id="filterForm">
+                    <input type="hidden" name="q" value="{{ query or '' }}">
+                    
+                    <div class="row g-3">
+                        <!-- 価格範囲 -->
+                        <div class="col-md-3">
+                            <label class="form-label">価格範囲</label>
+                            <div class="row g-1">
+                                <div class="col-6">
+                                    <input type="number" 
+                                           class="form-control form-control-sm" 
+                                           name="min_price" 
+                                           value="{{ filters.min_price or '' }}" 
+                                           placeholder="最小価格">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" 
+                                           class="form-control form-control-sm" 
+                                           name="max_price" 
+                                           value="{{ filters.max_price or '' }}" 
+                                           placeholder="最大価格">
                                 </div>
                             </div>
                         </div>
-                        {% endfor %}
+
+                        <!-- ジャンル -->
+                        <div class="col-md-3">
+                            <label for="genre" class="form-label">ジャンル</label>
+                            <select class="form-select form-select-sm" name="genre" id="genre">
+                                <option value="">すべて</option>
+                                <option value="action" {{ 'selected' if filters.genre == 'action' else '' }}>アクション</option>
+                                <option value="rpg" {{ 'selected' if filters.genre == 'rpg' else '' }}>RPG</option>
+                                <option value="strategy" {{ 'selected' if filters.genre == 'strategy' else '' }}>ストラテジー</option>
+                                <option value="simulation" {{ 'selected' if filters.genre == 'simulation' else '' }}>シミュレーション</option>
+                                <option value="sports" {{ 'selected' if filters.genre == 'sports' else '' }}>スポーツ</option>
+                                <option value="racing" {{ 'selected' if filters.genre == 'racing' else '' }}>レーシング</option>
+                                <option value="puzzle" {{ 'selected' if filters.genre == 'puzzle' else '' }}>パズル</option>
+                                <option value="adventure" {{ 'selected' if filters.genre == 'adventure' else '' }}>アドベンチャー</option>
+                            </select>
+                        </div>
+
+                        <!-- プラットフォーム -->
+                        <div class="col-md-3">
+                            <label for="platform" class="form-label">プラットフォーム</label>
+                            <select class="form-select form-select-sm" name="platform" id="platform">
+                                <option value="">すべて</option>
+                                <option value="windows" {{ 'selected' if filters.platform == 'windows' else '' }}>Windows</option>
+                                <option value="mac" {{ 'selected' if filters.platform == 'mac' else '' }}>Mac</option>
+                                <option value="linux" {{ 'selected' if filters.platform == 'linux' else '' }}>Linux</option>
+                                <option value="steam_deck" {{ 'selected' if filters.platform == 'steam_deck' else '' }}>Steam Deck</option>
+                            </select>
+                        </div>
+
+                        <!-- ソート順 -->
+                        <div class="col-md-3">
+                            <label for="sort" class="form-label">並び順</label>
+                            <select class="form-select form-select-sm" name="sort" id="sort">
+                                <option value="relevance" {{ 'selected' if filters.sort == 'relevance' else '' }}>関連度順</option>
+                                <option value="price_asc" {{ 'selected' if filters.sort == 'price_asc' else '' }}>価格安い順</option>
+                                <option value="price_desc" {{ 'selected' if filters.sort == 'price_desc' else '' }}>価格高い順</option>
+                                <option value="release_date" {{ 'selected' if filters.sort == 'release_date' else '' }}>リリース日順</option>
+                                <option value="title" {{ 'selected' if filters.sort == 'title' else '' }}>タイトル順</option>
+                            </select>
+                        </div>
                     </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-search fa-5x text-muted mb-3"></i>
-                        <h3 class="text-muted">検索結果が見つかりませんでした</h3>
-                        <p class="text-muted">別のキーワードで検索してみてください。</p>
+
+                    <div class="row mt-3">
+                        <div class="col">
+                            <button type="submit" class="btn btn-primary btn-sm me-2">
+                                <i class="bi bi-funnel me-1"></i>フィルター適用
+                            </button>
+                            <a href="{{ url_for('main.search') }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-x-circle me-1"></i>フィルタークリア
+                            </a>
+                        </div>
                     </div>
-                {% endif %}
-            {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-gamepad fa-5x text-muted mb-3"></i>
-                    <h3 class="text-muted">ゲームを検索してみましょう</h3>
-                    <p class="text-muted">上の検索ボックスにゲームタイトルを入力してください。</p>
-                </div>
-            {% endif %}
+                </form>
+            </div>
         </div>
     </div>
+
+    <!-- 検索結果ヘッダー -->
+    {% if query or has_filters %}
+    <div class="search-results-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                {% if query %}
+                <h2>「{{ query }}」の検索結果</h2>
+                {% else %}
+                <h2>検索結果</h2>
+                {% endif %}
+                
+                {% if games %}
+                <p class="text-muted mb-0">
+                    {{ pagination.total }}件中 {{ pagination.start_index }}-{{ pagination.end_index }}件を表示
+                    {% if search_time %}
+                    （検索時間: {{ "%.3f"|format(search_time) }}秒）
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- 表示切替 -->
+            <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="view-type" id="grid-view" autocomplete="off" checked>
+                <label class="btn btn-outline-secondary btn-sm" for="grid-view">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </label>
+
+                <input type="radio" class="btn-check" name="view-type" id="list-view" autocomplete="off">
+                <label class="btn btn-outline-secondary btn-sm" for="list-view">
+                    <i class="bi bi-list"></i>
+                </label>
+            </div>
+        </div>
+
+        <!-- アクティブフィルター表示 -->
+        {% if active_filters %}
+        <div class="active-filters mt-2">
+            <small class="text-muted">アクティブフィルター:</small>
+            {% for filter_name, filter_value in active_filters.items() %}
+            <span class="badge bg-primary me-1">
+                {{ filter_name }}: {{ filter_value }}
+                <a href="{{ url_for('main.search', q=query, **dict(filters.items() - [(filter_name, filter_value)])) }}" 
+                   class="text-white ms-1" style="text-decoration: none;">×</a>
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- 検索結果 -->
+    {% if games %}
+    <!-- グリッド表示 -->
+    <div id="grid-results" class="search-results grid-view">
+        <div class="row">
+            {% for game in games %}
+            <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 game-card">
+                    <div class="position-relative">
+                        <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                             class="card-img-top game-image" 
+                             alt="{{ game.title }}"
+                             loading="lazy">
+                        
+                        <!-- 割引バッジ -->
+                        {% if game.lowest_price and game.lowest_price.discount_percent and game.lowest_price.discount_percent > 0 %}
+                        <div class="discount-badge">
+                            -{{ game.lowest_price.discount_percent }}%
+                        </div>
+                        {% endif %}
+
+                        <!-- お気に入りボタン -->
+                        {% if current_user.is_authenticated %}
+                        <button class="btn btn-sm btn-outline-light favorite-btn position-absolute top-0 end-0 m-2" 
+                                data-game-id="{{ game.id }}"
+                                data-bs-toggle="tooltip" 
+                                title="お気に入りに追加">
+                            <i class="bi bi-heart"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ game.title }}</h5>
+                        
+                        {% if game.lowest_price %}
+                        <div class="price-info mb-2">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <span class="fs-5 fw-bold text-success">¥{{ "{:,}".format(game.lowest_price.price|int) }}</span>
+                                <span class="store-badge store-{{ game.lowest_price.store }}">{{ game.lowest_price.store|upper }}</span>
+                            </div>
+                            {% if game.lowest_price.original_price and game.lowest_price.original_price > game.lowest_price.price %}
+                            <small class="text-muted text-decoration-line-through">
+                                ¥{{ "{:,}".format(game.lowest_price.original_price|int) }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if game.genres %}
+                        <div class="mb-2">
+                            {% for genre in game.genres.split(',')[:2] %}
+                            <span class="badge bg-secondary me-1">{{ genre.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <p class="card-text flex-grow-1">
+                            {{ game.description[:80] }}{% if game.description|length > 80 %}...{% endif %}
+                        </p>
+
+                        <div class="mt-auto">
+                            <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
+                               class="btn btn-primary btn-sm w-100">詳細を見る</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- リスト表示 -->
+    <div id="list-results" class="search-results list-view d-none">
+        <div class="list-group">
+            {% for game in games %}
+            <div class="list-group-item">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                             class="img-fluid rounded" 
+                             alt="{{ game.title }}"
+                             style="max-height: 100px;">
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="mb-1">{{ game.title }}</h5>
+                        <p class="mb-1 text-muted">{{ game.description[:150] }}...</p>
+                        {% if game.genres %}
+                        <small>
+                            {% for genre in game.genres.split(',')[:3] %}
+                            <span class="badge bg-secondary me-1">{{ genre.strip() }}</span>
+                            {% endfor %}
+                        </small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 text-center">
+                        {% if game.lowest_price %}
+                        <div class="price-info">
+                            <div class="fs-4 fw-bold text-success">¥{{ "{:,}".format(game.lowest_price.price|int) }}</div>
+                            <span class="store-badge store-{{ game.lowest_price.store }}">{{ game.lowest_price.store|upper }}</span>
+                            {% if game.lowest_price.discount_percent and game.lowest_price.discount_percent > 0 %}
+                            <div class="badge bg-danger mt-1">{{ game.lowest_price.discount_percent }}% OFF</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
+                               class="btn btn-primary btn-sm">詳細を見る</a>
+                            {% if current_user.is_authenticated %}
+                            <button class="btn btn-sm btn-outline-danger favorite-btn" 
+                                    data-game-id="{{ game.id }}">
+                                <i class="bi bi-heart me-1"></i>お気に入り
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ページネーション -->
+    {% if pagination.pages > 1 %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav>
+            <ul class="pagination">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('main.search', page=pagination.prev_num, q=query, **filters) }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.search', page=page_num, q=query, **filters) }}">{{ page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">…</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('main.search', page=pagination.next_num, q=query, **filters) }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+
+    {% elif query or has_filters %}
+    <!-- 検索結果なし -->
+    <div class="text-center py-5">
+        <i class="bi bi-search display-1 text-muted"></i>
+        <h3 class="mt-3">検索結果が見つかりませんでした</h3>
+        <p class="text-muted">
+            {% if query %}
+            「{{ query }}」に一致するゲームが見つかりません。
+            {% else %}
+            指定した条件に一致するゲームが見つかりません。
+            {% endif %}
+        </p>
+        <div class="mt-4">
+            <a href="{{ url_for('main.search') }}" class="btn btn-primary me-2">検索条件をリセット</a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">ホームに戻る</a>
+        </div>
+
+        <!-- 検索のヒント -->
+        <div class="mt-4">
+            <h5>検索のヒント:</h5>
+            <ul class="list-unstyled text-muted">
+                <li>• より短いキーワードで検索してみてください</li>
+                <li>• スペルを確認してください</li>
+                <li>• 別のキーワードで検索してみてください</li>
+                <li>• フィルターを解除してみてください</li>
+            </ul>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- 初期状態（検索前） -->
+    <div class="text-center py-5">
+        <i class="bi bi-controller display-1 text-primary"></i>
+        <h2 class="mt-3">お探しのゲームを見つけよう</h2>
+        <p class="text-muted mb-4">数千のゲームから最安値をリアルタイムで比較できます</p>
+        
+        <!-- 人気のキーワード -->
+        <div class="popular-keywords">
+            <h5>人気のキーワード:</h5>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                {% for keyword in popular_keywords %}
+                <a href="{{ url_for('main.search', q=keyword) }}" 
+                   class="btn btn-outline-primary btn-sm">{{ keyword }}</a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 最近のゲーム -->
+        {% if recent_games %}
+        <div class="recent-games mt-5">
+            <h5>最近追加されたゲーム:</h5>
+            <div class="row justify-content-center">
+                {% for game in recent_games[:4] %}
+                <div class="col-sm-6 col-md-3 mb-3">
+                    <div class="card">
+                        <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                             class="card-img-top" 
+                             alt="{{ game.title }}"
+                             style="height: 150px; object-fit: cover;">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">{{ game.title }}</h6>
+                            <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
+                               class="btn btn-primary btn-sm">詳細を見る</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function addToFavorites(gameId) {
-    // お気に入り追加機能（今後実装）
-    alert('お気に入り機能は開発中です。ゲームID: ' + gameId);
-}
+document.addEventListener('DOMContentLoaded', function() {
+    // 表示切替機能
+    const gridViewBtn = document.getElementById('grid-view');
+    const listViewBtn = document.getElementById('list-view');
+    const gridResults = document.getElementById('grid-results');
+    const listResults = document.getElementById('list-results');
+
+    if (gridViewBtn && listViewBtn) {
+        gridViewBtn.addEventListener('change', function() {
+            if (this.checked) {
+                gridResults.classList.remove('d-none');
+                listResults.classList.add('d-none');
+                localStorage.setItem('search-view', 'grid');
+            }
+        });
+
+        listViewBtn.addEventListener('change', function() {
+            if (this.checked) {
+                gridResults.classList.add('d-none');
+                listResults.classList.remove('d-none');
+                localStorage.setItem('search-view', 'list');
+            }
+        });
+
+        // 保存された表示設定を復元
+        const savedView = localStorage.getItem('search-view');
+        if (savedView === 'list') {
+            listViewBtn.checked = true;
+            listViewBtn.dispatchEvent(new Event('change'));
+        }
+    }
+
+    // フィルターフォームの自動送信
+    const filterForm = document.getElementById('filterForm');
+    if (filterForm) {
+        const selects = filterForm.querySelectorAll('select');
+        selects.forEach(select => {
+            select.addEventListener('change', function() {
+                // 遅延を追加してユーザーが選択を完了するのを待つ
+                setTimeout(() => {
+                    filterForm.submit();
+                }, 100);
+            });
+        });
+    }
+});
 </script>
-
-<style>
-.game-card {
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.game-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.card-img-top {
-    height: 200px;
-    object-fit: cover;
-}
-
-.price-section {
-    border-top: 1px solid #eee;
-    padding-top: 1rem;
-}
-</style>
 {% endblock %}

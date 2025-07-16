@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.discord_username }} のプロフィール - GameBargain{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- プロフィールヘッダー -->
+    <div class="profile-header mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-2">
+                <div class="profile-avatar">
+                    <img src="{{ user.avatar_url or url_for('static', filename='images/default-avatar.png') }}" 
+                         alt="{{ user.discord_username }}" 
+                         class="rounded-circle img-fluid shadow"
+                         style="width: 120px; height: 120px; object-fit: cover;">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h1 class="display-6 mb-2">{{ user.discord_username }}</h1>
+                <div class="text-muted mb-2">
+                    <i class="bi bi-calendar-plus me-2"></i>
+                    {{ user.created_at.strftime('%Y年%m月') }}から利用
+                </div>
+                <div class="d-flex gap-3">
+                    <span class="badge bg-primary fs-6">
+                        <i class="bi bi-heart-fill me-1"></i>
+                        お気に入り {{ favorites|length }}件
+                    </span>
+                    <span class="badge bg-info fs-6">
+                        <i class="bi bi-bell-fill me-1"></i>
+                        アラート {{ alerts|length }}件
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                {% if current_user.id == user.id %}
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                    <i class="bi bi-gear me-2"></i>設定
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 統計情報 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-heart-fill text-danger fs-1"></i>
+                    <h4 class="card-title mt-2">{{ favorites|length }}</h4>
+                    <p class="card-text text-muted">お気に入りゲーム</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-bell-fill text-warning fs-1"></i>
+                    <h4 class="card-title mt-2">{{ alerts|length }}</h4>
+                    <p class="card-text text-muted">価格アラート</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-piggy-bank-fill text-success fs-1"></i>
+                    <h4 class="card-title mt-2">¥{{ "{:,}".format(total_savings|int) }}</h4>
+                    <p class="card-text text-muted">節約金額</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-graph-up text-primary fs-1"></i>
+                    <h4 class="card-title mt-2">{{ total_deals }}</h4>
+                    <p class="card-text text-muted">発見したセール</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- タブナビゲーション -->
+    <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="favorites-tab" data-bs-toggle="tab" data-bs-target="#favorites" type="button">
+                <i class="bi bi-heart-fill me-2"></i>お気に入り ({{ favorites|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="alerts-tab" data-bs-toggle="tab" data-bs-target="#alerts" type="button">
+                <i class="bi bi-bell-fill me-2"></i>価格アラート ({{ alerts|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button">
+                <i class="bi bi-clock-history me-2"></i>アクティビティ
+            </button>
+        </li>
+        {% if current_user.id == user.id %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button">
+                <i class="bi bi-envelope-fill me-2"></i>通知設定
+            </button>
+        </li>
+        {% endif %}
+    </ul>
+
+    <!-- タブコンテンツ -->
+    <div class="tab-content mt-4" id="profileTabsContent">
+        <!-- お気に入りタブ -->
+        <div class="tab-pane fade show active" id="favorites" role="tabpanel">
+            {% if favorites %}
+            <div class="row">
+                {% for favorite in favorites %}
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+                    <div class="card h-100 game-card">
+                        <div class="position-relative">
+                            <img src="{{ favorite.game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                                 class="card-img-top game-image" 
+                                 alt="{{ favorite.game.title }}">
+                            
+                            <!-- 価格変動インジケーター -->
+                            {% if favorite.price_change %}
+                            <div class="price-change-badge {{ 'price-down' if favorite.price_change < 0 else 'price-up' }}">
+                                {% if favorite.price_change < 0 %}
+                                <i class="bi bi-arrow-down"></i>
+                                {% else %}
+                                <i class="bi bi-arrow-up"></i>
+                                {% endif %}
+                                {{ "%.0f"|format(favorite.price_change|abs) }}%
+                            </div>
+                            {% endif %}
+
+                            <button class="btn btn-sm btn-danger favorite-btn favorited position-absolute top-0 end-0 m-2" 
+                                    data-game-id="{{ favorite.game.id }}"
+                                    data-bs-toggle="tooltip" 
+                                    title="お気に入りから削除">
+                                <i class="bi bi-heart-fill"></i>
+                            </button>
+                        </div>
+
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ favorite.game.title }}</h5>
+                            
+                            {% if favorite.game.lowest_price %}
+                            <div class="price-info mb-2">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="fs-5 fw-bold text-success">¥{{ "{:,}".format(favorite.game.lowest_price.price|int) }}</span>
+                                    <span class="store-badge store-{{ favorite.game.lowest_price.store }}">{{ favorite.game.lowest_price.store|upper }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <small class="text-muted mb-2">
+                                <i class="bi bi-heart-fill me-1"></i>
+                                {{ favorite.added_at.strftime('%Y年%m月%d日') }}に追加
+                            </small>
+
+                            <div class="mt-auto">
+                                <a href="{{ url_for('main.game_detail', game_id=favorite.game.id) }}" 
+                                   class="btn btn-primary btn-sm w-100">詳細を見る</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-heart display-1 text-muted"></i>
+                <h4 class="mt-3">お気に入りのゲームがありません</h4>
+                <p class="text-muted">ゲームをお気に入りに追加して価格をチェックしましょう</p>
+                <a href="{{ url_for('main.search') }}" class="btn btn-primary">ゲームを探す</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 価格アラートタブ -->
+        <div class="tab-pane fade" id="alerts" role="tabpanel">
+            {% if alerts %}
+            <div class="list-group">
+                {% for alert in alerts %}
+                <div class="list-group-item">
+                    <div class="row align-items-center">
+                        <div class="col-md-2">
+                            <img src="{{ alert.game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                                 class="img-fluid rounded" 
+                                 alt="{{ alert.game.title }}"
+                                 style="max-height: 80px;">
+                        </div>
+                        <div class="col-md-4">
+                            <h5 class="mb-1">{{ alert.game.title }}</h5>
+                            <small class="text-muted">
+                                アラート設定: {{ alert.created_at.strftime('%Y年%m月%d日') }}
+                            </small>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <div class="price-threshold">
+                                <strong>目標価格</strong>
+                                <div class="fs-5 text-primary">¥{{ "{:,}".format(alert.threshold_price|int) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            {% if alert.game.lowest_price %}
+                            <div class="current-price">
+                                <strong>現在価格</strong>
+                                <div class="fs-5 {{ 'text-success' if alert.game.lowest_price.price <= alert.threshold_price else 'text-muted' }}">
+                                    ¥{{ "{:,}".format(alert.game.lowest_price.price|int) }}
+                                </div>
+                                {% if alert.game.lowest_price.price <= alert.threshold_price %}
+                                <span class="badge bg-success">目標到達！</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-2">
+                            <div class="d-grid gap-1">
+                                <a href="{{ url_for('main.game_detail', game_id=alert.game.id) }}" 
+                                   class="btn btn-primary btn-sm">詳細を見る</a>
+                                {% if current_user.id == user.id %}
+                                <button class="btn btn-outline-danger btn-sm delete-alert-btn" 
+                                        data-alert-id="{{ alert.id }}">
+                                    <i class="bi bi-trash me-1"></i>削除
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-bell display-1 text-muted"></i>
+                <h4 class="mt-3">価格アラートが設定されていません</h4>
+                <p class="text-muted">ゲームの価格が下がったら通知を受け取りましょう</p>
+                <a href="{{ url_for('main.search') }}" class="btn btn-primary">ゲームを探す</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- アクティビティタブ -->
+        <div class="tab-pane fade" id="activity" role="tabpanel">
+            {% if activities %}
+            <div class="activity-timeline">
+                {% for activity in activities %}
+                <div class="activity-item">
+                    <div class="activity-icon {{ activity.type }}">
+                        {% if activity.type == 'favorite_added' %}
+                        <i class="bi bi-heart-fill"></i>
+                        {% elif activity.type == 'alert_created' %}
+                        <i class="bi bi-bell-fill"></i>
+                        {% elif activity.type == 'deal_found' %}
+                        <i class="bi bi-tag-fill"></i>
+                        {% endif %}
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-text">
+                            {% if activity.type == 'favorite_added' %}
+                            <strong>{{ activity.game.title }}</strong> をお気に入りに追加しました
+                            {% elif activity.type == 'alert_created' %}
+                            <strong>{{ activity.game.title }}</strong> の価格アラートを設定しました（¥{{ "{:,}".format(activity.threshold_price|int) }}）
+                            {% elif activity.type == 'deal_found' %}
+                            <strong>{{ activity.game.title }}</strong> で{{ activity.discount_percent }}%オフのセールを発見
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">{{ activity.created_at.strftime('%Y年%m月%d日 %H:%M') }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-clock-history display-1 text-muted"></i>
+                <h4 class="mt-3">アクティビティがありません</h4>
+                <p class="text-muted">ゲームをお気に入りに追加したり、価格アラートを設定したりしてみましょう</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 通知設定タブ -->
+        {% if current_user.id == user.id %}
+        <div class="tab-pane fade" id="notifications" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">通知設定</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="notificationSettingsForm">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="emailNotifications" 
+                                           {{ 'checked' if user.email_notifications else '' }}>
+                                    <label class="form-check-label" for="emailNotifications">
+                                        <strong>メール通知</strong>
+                                        <div class="text-muted small">価格アラートの通知をメールで受け取る</div>
+                                    </label>
+                                </div>
+
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="discordNotifications" 
+                                           {{ 'checked' if user.discord_notifications else '' }}>
+                                    <label class="form-check-label" for="discordNotifications">
+                                        <strong>Discord通知</strong>
+                                        <div class="text-muted small">価格アラートの通知をDiscordで受け取る</div>
+                                    </label>
+                                </div>
+
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="weeklyDigest" 
+                                           {{ 'checked' if user.weekly_digest else '' }}>
+                                    <label class="form-check-label" for="weeklyDigest">
+                                        <strong>週間ダイジェスト</strong>
+                                        <div class="text-muted small">お気に入りゲームの価格変動を週1回まとめて通知</div>
+                                    </label>
+                                </div>
+
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="dealAlerts" 
+                                           {{ 'checked' if user.deal_alerts else '' }}>
+                                    <label class="form-check-label" for="dealAlerts">
+                                        <strong>セール情報</strong>
+                                        <div class="text-muted small">お気に入りゲームのセール情報を通知</div>
+                                    </label>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">設定を保存</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">アカウント連携</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-discord text-primary fs-4 me-3"></i>
+                                <div>
+                                    <strong>Discord</strong>
+                                    <div class="text-success small">
+                                        <i class="bi bi-check-circle me-1"></i>連携済み
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <small class="text-muted">
+                                連携解除する場合は、お問い合わせください。
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 設定モーダル -->
+{% if current_user.id == user.id %}
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">プロフィール設定</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="profileSettingsForm">
+                    <div class="mb-3">
+                        <label for="displayName" class="form-label">表示名</label>
+                        <input type="text" class="form-control" id="displayName" 
+                               value="{{ user.discord_username }}" readonly>
+                        <div class="form-text">表示名はDiscordアカウントに基づきます</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="profilePrivacy" class="form-label">プロフィール公開設定</label>
+                        <select class="form-select" id="profilePrivacy">
+                            <option value="public" {{ 'selected' if user.profile_public else '' }}>公開</option>
+                            <option value="private" {{ 'selected' if not user.profile_public else '' }}>非公開</option>
+                        </select>
+                        <div class="form-text">非公開にするとプロフィールページが他のユーザーに表示されません</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" id="saveProfileSettings">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // アラート削除機能
+    const deleteAlertBtns = document.querySelectorAll('.delete-alert-btn');
+    deleteAlertBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const alertId = this.dataset.alertId;
+            
+            if (confirm('この価格アラートを削除してもよろしいですか？')) {
+                deleteAlert(alertId, this.closest('.list-group-item'));
+            }
+        });
+    });
+
+    // 通知設定フォーム
+    const notificationForm = document.getElementById('notificationSettingsForm');
+    if (notificationForm) {
+        notificationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveNotificationSettings();
+        });
+    }
+
+    // プロフィール設定フォーム
+    const profileForm = document.getElementById('profileSettingsForm');
+    const saveProfileBtn = document.getElementById('saveProfileSettings');
+    if (saveProfileBtn) {
+        saveProfileBtn.addEventListener('click', function() {
+            saveProfileSettings();
+        });
+    }
+});
+
+// アラート削除
+async function deleteAlert(alertId, element) {
+    try {
+        const response = await GameBargain.apiCall('/price-alerts', {
+            method: 'DELETE',
+            body: JSON.stringify({ alert_id: parseInt(alertId) })
+        });
+
+        if (response.success) {
+            element.remove();
+            GameBargain.showToast('価格アラートを削除しました', 'success');
+            
+            // カウンターの更新
+            updateAlertCount(-1);
+        } else {
+            GameBargain.showToast(response.message || '削除に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('Alert deletion error:', error);
+        GameBargain.showToast('ネットワークエラーが発生しました', 'error');
+    }
+}
+
+// 通知設定の保存
+async function saveNotificationSettings() {
+    const settings = {
+        email_notifications: document.getElementById('emailNotifications').checked,
+        discord_notifications: document.getElementById('discordNotifications').checked,
+        weekly_digest: document.getElementById('weeklyDigest').checked,
+        deal_alerts: document.getElementById('dealAlerts').checked
+    };
+
+    try {
+        const response = await GameBargain.apiCall('/user/notifications', {
+            method: 'PUT',
+            body: JSON.stringify(settings)
+        });
+
+        if (response.success) {
+            GameBargain.showToast('通知設定を保存しました', 'success');
+        } else {
+            GameBargain.showToast(response.message || '保存に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('Notification settings error:', error);
+        GameBargain.showToast('ネットワークエラーが発生しました', 'error');
+    }
+}
+
+// プロフィール設定の保存
+async function saveProfileSettings() {
+    const settings = {
+        profile_public: document.getElementById('profilePrivacy').value === 'public'
+    };
+
+    try {
+        const response = await GameBargain.apiCall('/user/profile', {
+            method: 'PUT',
+            body: JSON.stringify(settings)
+        });
+
+        if (response.success) {
+            GameBargain.showToast('プロフィール設定を保存しました', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+        } else {
+            GameBargain.showToast(response.message || '保存に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('Profile settings error:', error);
+        GameBargain.showToast('ネットワークエラーが発生しました', 'error');
+    }
+}
+
+// カウンター更新
+function updateAlertCount(change) {
+    const alertTab = document.getElementById('alerts-tab');
+    const alertBadge = document.querySelector('.badge.bg-info');
+    
+    if (alertTab && alertBadge) {
+        const match = alertTab.textContent.match(/\((\d+)\)/);
+        if (match) {
+            const currentCount = parseInt(match[1]);
+            const newCount = Math.max(0, currentCount + change);
+            
+            alertTab.innerHTML = alertTab.innerHTML.replace(/\(\d+\)/, `(${newCount})`);
+            alertBadge.innerHTML = alertBadge.innerHTML.replace(/\d+/, newCount);
+        }
+    }
+}
+</script>
+{% endblock %}

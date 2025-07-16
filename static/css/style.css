@@ -1,129 +1,196 @@
 /* GameBargain Custom Styles */
 
 :root {
-    --primary-color: #007bff;
-    --secondary-color: #6c757d;
+    --primary-color: #667eea;
+    --secondary-color: #764ba2;
     --success-color: #28a745;
-    --info-color: #17a2b8;
-    --warning-color: #ffc107;
     --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
     --light-color: #f8f9fa;
     --dark-color: #343a40;
+    --steam-color: #1b2838;
+    --epic-color: #0078f2;
+    --discord-color: #5865F2;
 }
 
-/* 全体的なスタイル */
+/* 全体のスタイル */
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
 }
 
-/* ナビゲーション */
+/* ナビゲーションバー */
 .navbar-brand {
-    font-weight: 700;
     font-size: 1.5rem;
+    font-weight: 700;
 }
 
-/* カード */
+.navbar .form-control:focus {
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+}
+
+/* カード関連 */
 .card {
-    border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: box-shadow 0.3s ease;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 .card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-img-top {
+    transition: transform 0.3s ease;
+}
+
+.card:hover .card-img-top {
+    transform: scale(1.05);
 }
 
 /* ゲームカード */
 .game-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
-.game-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-}
-
-.card-img-top {
+.game-card .card-img-top {
     height: 200px;
     object-fit: cover;
-    transition: transform 0.3s ease;
 }
 
-.game-card:hover .card-img-top {
-    transform: scale(1.05);
+.game-card .card-body {
+    padding: 1.5rem;
 }
 
-/* ボタン */
+/* 価格表示 */
+.price-container {
+    background: linear-gradient(45deg, var(--light-color), #ffffff);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 0.5rem 0;
+}
+
+.price-current {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--success-color);
+}
+
+.price-original {
+    font-size: 1rem;
+    color: var(--secondary);
+    text-decoration: line-through;
+}
+
+.discount-badge {
+    background: linear-gradient(45deg, var(--danger-color), #ff6b6b);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: bold;
+}
+
+/* ストアバッジ */
+.store-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.store-badge.steam {
+    background-color: var(--steam-color);
+    color: white;
+}
+
+.store-badge.epic {
+    background-color: var(--epic-color);
+    color: white;
+}
+
+.store-badge.gog {
+    background-color: #86328a;
+    color: white;
+}
+
+/* ボタンスタイル */
 .btn {
     border-radius: 8px;
     font-weight: 500;
     transition: all 0.2s ease;
 }
 
-.btn:hover {
-    transform: translateY(-1px);
+.btn-discord {
+    background-color: var(--discord-color);
+    border-color: var(--discord-color);
+    color: white;
 }
 
-.btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), #0056b3);
-    border: none;
+.btn-discord:hover {
+    background-color: #4752c4;
+    border-color: #4752c4;
+    color: white;
 }
 
-.btn-primary:hover {
-    background: linear-gradient(135deg, #0056b3, #004494);
+.btn-steam {
+    background-color: var(--steam-color);
+    border-color: var(--steam-color);
+    color: white;
 }
 
-/* 価格表示 */
-.price-display {
-    font-size: 1.25rem;
-    font-weight: 700;
+.btn-steam:hover {
+    background-color: #2a475e;
+    border-color: #2a475e;
+    color: white;
 }
 
-.discount-badge {
-    font-size: 0.875rem;
-    font-weight: 600;
+.btn-epic {
+    background-color: var(--epic-color);
+    border-color: var(--epic-color);
+    color: white;
 }
 
-/* ヒーローセクション */
-.hero-section {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+.btn-epic:hover {
+    background-color: #0056cc;
+    border-color: #0056cc;
+    color: white;
+}
+
+/* お気に入りボタン */
+.favorite-btn {
     position: relative;
     overflow: hidden;
 }
 
-.hero-section::before {
+.favorite-btn::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><polygon fill="rgba(255,255,255,0.05)" points="0,1000 1000,0 1000,1000"/></svg>');
-    background-size: cover;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background-color: rgba(220, 53, 69, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
 }
 
-/* 検索フォーム */
-.search-form .form-control {
-    border-radius: 12px 0 0 12px;
-    border: 2px solid #e9ecef;
-    padding: 12px 16px;
+.favorite-btn:hover::before {
+    width: 100%;
+    height: 100%;
 }
 
-.search-form .btn {
-    border-radius: 0 12px 12px 0;
-    padding: 12px 20px;
-}
-
-/* フッター */
-footer {
-    background: linear-gradient(135deg, var(--dark-color), #1a1e21);
-}
-
-/* 統計セクション */
-.stats-section {
-    background: linear-gradient(135deg, var(--light-color), #e9ecef);
-    border-radius: 12px;
+.favorite-btn.favorited {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
 }
 
 /* アニメーション */
@@ -142,68 +209,202 @@ footer {
     animation: fadeInUp 0.6s ease-out;
 }
 
-/* ローディングスピナー */
-.spinner-border-sm {
-    width: 1rem;
-    height: 1rem;
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
-/* アラート */
-.alert {
-    border: none;
-    border-radius: 8px;
-    font-weight: 500;
+.pulse {
+    animation: pulse 2s infinite;
 }
 
-/* 価格比較テーブル */
-.price-comparison {
+/* グラデーション背景 */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+}
+
+.bg-gradient-danger {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #fd7e14 100%);
+}
+
+/* 検索関連 */
+.search-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
     background: white;
-    border-radius: 12px;
-    overflow: hidden;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
-.price-row {
-    padding: 16px;
-    border-bottom: 1px solid #f8f9fa;
+.search-suggestion-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f3f4;
     transition: background-color 0.2s ease;
 }
 
-.price-row:hover {
+.search-suggestion-item:hover {
     background-color: #f8f9fa;
 }
 
-.price-row:last-child {
+.search-suggestion-item:last-child {
     border-bottom: none;
 }
 
-/* 最安値ハイライト */
-.best-price {
-    background: linear-gradient(135deg, #d4edda, #c3e6cb);
-    border-left: 4px solid var(--success-color);
+/* ローディングスピナー */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
-/* レスポンシブ */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* トースト通知 */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+}
+
+.toast {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* フッター */
+footer {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+}
+
+footer a:hover {
+    color: white !important;
+    text-decoration: underline !important;
+}
+
+/* レスポンシブ対応 */
 @media (max-width: 768px) {
-    .hero-section {
-        text-align: center;
-    }
-    
-    .hero-section .display-4 {
-        font-size: 2.5rem;
+    .navbar-brand {
+        font-size: 1.25rem;
     }
     
     .card-img-top {
-        height: 180px;
+        height: 150px;
+    }
+    
+    .game-card .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-lg {
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+    
+    .display-5 {
+        font-size: 1.5rem;
     }
 }
 
 @media (max-width: 576px) {
-    .hero-section .display-4 {
-        font-size: 2rem;
+    .container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
     }
     
-    .btn-lg {
-        padding: 10px 16px;
-        font-size: 1rem;
+    .card-img-top {
+        height: 120px;
+    }
+    
+    .navbar .input-group {
+        max-width: 200px;
+    }
+}
+
+/* プリント用スタイル */
+@media print {
+    .navbar,
+    .btn,
+    footer {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+    }
+}
+
+/* ダークモード対応（将来の拡張用） */
+@media (prefers-color-scheme: dark) {
+    /* 
+    body {
+        background-color: #121212;
+        color: #ffffff;
+    }
+    */
+}
+
+/* アクセシビリティ改善 */
+.btn:focus,
+.form-control:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* 高コントラスト対応 */
+@media (prefers-contrast: high) {
+    .btn {
+        border-width: 2px;
+    }
+    
+    .card {
+        border-width: 2px;
+    }
+}
+
+/* 動きの軽減設定に対応 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }

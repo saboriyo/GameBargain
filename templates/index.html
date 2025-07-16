@@ -1,175 +1,332 @@
 {% extends "base.html" %}
 
-{% block title %}GameBargain - ゲーム価格比較サービス{% endblock %}
+{% block title %}ホーム{% endblock %}
 
 {% block content %}
-<div class="hero-section bg-primary text-white py-5">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-6">
-                <h1 class="display-4 fw-bold mb-3">
-                    <i class="fas fa-gamepad me-3"></i>GameBargain
-                </h1>
-                <p class="lead mb-4">
-                    Steam、Epic Games Store、Origin、Ubisoft Connectなど<br>
-                    複数のゲームプラットフォームの価格を比較し、<br>
-                    最安値でゲームを購入しよう！
-                </p>
-                
-                <!-- 検索フォーム -->
-                <form action="{{ url_for('main.search') }}" method="GET" class="d-flex mb-3">
-                    <input type="text" name="q" class="form-control form-control-lg me-2" 
-                           placeholder="ゲームタイトルを検索..." required>
-                    <button type="submit" class="btn btn-light btn-lg">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </form>
+<div class="container my-4">
+    <!-- ヒーローセクション -->
+    <div class="row align-items-center bg-gradient rounded-3 p-5 mb-5" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="col-lg-6 text-white">
+            <h1 class="display-4 fw-bold mb-3">
+                <i class="bi bi-controller me-3"></i>
+                GameBargain
+            </h1>
+            <p class="lead mb-4">
+                Steam、Epic Games Storeなど複数プラットフォームの価格を比較して、
+                最安値でゲームを購入しよう！
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('main.search') }}" class="btn btn-light btn-lg">
+                    <i class="bi bi-search me-2"></i>ゲームを検索
+                </a>
+                {% if not current_user.is_authenticated %}
+                <a href="{{ url_for('auth.discord_login') }}" class="btn btn-outline-light btn-lg">
+                    <i class="bi bi-discord me-2"></i>Discordでログイン
+                </a>
+                {% endif %}
             </div>
-            <div class="col-lg-6">
-                <div class="text-center">
-                    <i class="fas fa-chart-line fa-10x opacity-50"></i>
+        </div>
+        <div class="col-lg-6 text-center">
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="bg-white bg-opacity-10 rounded-3 p-3">
+                        <i class="bi bi-graph-down-arrow display-6 text-white"></i>
+                        <h6 class="text-white mt-2">価格比較</h6>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="bg-white bg-opacity-10 rounded-3 p-3">
+                        <i class="bi bi-bell display-6 text-white"></i>
+                        <h6 class="text-white mt-2">価格通知</h6>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="bg-white bg-opacity-10 rounded-3 p-3">
+                        <i class="bi bi-heart display-6 text-white"></i>
+                        <h6 class="text-white mt-2">お気に入り</h6>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="bg-white bg-opacity-10 rounded-3 p-3">
+                        <i class="bi bi-discord display-6 text-white"></i>
+                        <h6 class="text-white mt-2">Discord連携</h6>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="container my-5">
-    <!-- 主な機能 -->
+    {% if sale_games %}
+    <!-- セール中のゲーム -->
     <section class="mb-5">
-        <h2 class="text-center mb-4">🎯 主な機能</h2>
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="card h-100 text-center">
-                    <div class="card-body">
-                        <i class="fas fa-search fa-3x text-primary mb-3"></i>
-                        <h5 class="card-title">ゲーム検索・価格比較</h5>
-                        <p class="card-text">複数プラットフォームの価格を一括比較し、最安値を瞬時に発見。</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card h-100 text-center">
-                    <div class="card-body">
-                        <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
-                        <h5 class="card-title">価格履歴・トレンド</h5>
-                        <p class="card-text">価格推移をグラフで視覚化し、最適な購入タイミングを把握。</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card h-100 text-center">
-                    <div class="card-body">
-                        <i class="fab fa-discord fa-3x text-info mb-3"></i>
-                        <h5 class="card-title">Discord Bot連携</h5>
-                        <p class="card-text">リアルタイム価格通知とBot検索で、いつでも最新情報をチェック。</p>
-                    </div>
-                </div>
-            </div>
+        <div class="d-flex align-items-center mb-4">
+            <h2 class="mb-0">
+                <i class="bi bi-fire text-danger me-2"></i>
+                セール中のゲーム
+            </h2>
+            <span class="badge bg-danger ms-2">{{ sale_games|length }}件</span>
         </div>
+        
+        <div class="row">
+            {% for game in sale_games[:3] %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="position-relative">
+                        <img src="{{ game.image_url }}" class="card-img-top" alt="{{ game.title }}" style="height: 200px; object-fit: cover;">
+                        {% set max_discount = game.prices.values() | map(attribute='discount') | max %}
+                        {% if max_discount > 0 %}
+                        <span class="position-absolute top-0 end-0 badge bg-danger fs-6 m-2">
+                            -{{ max_discount }}%
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ game.title }}</h5>
+                        <p class="card-text text-muted small">{{ game.developer }}</p>
+                        
+                        <!-- 価格情報 -->
+                        <div class="mt-auto">
+                            {% for store, price_info in game.prices.items() %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-secondary">{{ store|upper }}</span>
+                                <div class="text-end">
+                                    {% if price_info.discount > 0 %}
+                                    <span class="text-muted text-decoration-line-through small">¥{{ "{:,}".format(price_info.original) }}</span>
+                                    <span class="fw-bold text-danger ms-1">¥{{ "{:,}".format(price_info.current) }}</span>
+                                    {% else %}
+                                    <span class="fw-bold">¥{{ "{:,}".format(price_info.current) }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            <div class="d-flex gap-2 mt-3">
+                                <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
+                                   class="btn btn-primary btn-sm flex-grow-1">
+                                    <i class="bi bi-eye me-1"></i>詳細
+                                </a>
+                                {% if current_user.is_authenticated %}
+                                <button class="btn btn-outline-danger btn-sm" data-bs-toggle="tooltip" title="お気に入りに追加">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if sale_games|length > 3 %}
+        <div class="text-center">
+            <a href="{{ url_for('main.search') }}?sale=1" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-right me-1"></i>セール商品をもっと見る
+            </a>
+        </div>
+        {% endif %}
     </section>
+    {% endif %}
 
     <!-- おすすめゲーム -->
     <section class="mb-5">
-        <h2 class="text-center mb-4">🔥 今日のおすすめセール</h2>
-        <div class="row g-4">
-            <div class="col-md-6 col-lg-4">
-                <div class="card game-card">
-                    <img src="{{ url_for('static', filename='images/game_placeholder.jpg') }}" 
-                         class="card-img-top" alt="Cyberpunk 2077">
-                    <div class="card-body">
-                        <h5 class="card-title">Cyberpunk 2077</h5>
-                        <p class="card-text">
-                            <span class="badge bg-danger">50% OFF</span>
-                            <span class="text-decoration-line-through text-muted">¥6,000</span>
-                            <span class="text-primary fw-bold fs-5">¥3,000</span>
-                        </p>
-                        <p class="small text-muted">Steam</p>
-                        <a href="{{ url_for('main.game_detail', game_id=1) }}" class="btn btn-primary">詳細を見る</a>
+        <div class="d-flex align-items-center mb-4">
+            <h2 class="mb-0">
+                <i class="bi bi-star text-warning me-2"></i>
+                おすすめゲーム
+            </h2>
+        </div>
+        
+        <div class="row">
+            {% for game in featured_games %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="position-relative">
+                        <img src="{{ game.image_url }}" class="card-img-top" alt="{{ game.title }}" style="height: 200px; object-fit: cover;">
+                        <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">最安値</span>
+                                <span class="badge bg-success">{{ game.lowest_store|upper }}</span>
+                            </div>
+                            <div class="fs-5 fw-bold">¥{{ "{:,}".format(game.lowest_price) }}</div>
+                        </div>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ game.title }}</h5>
+                        <p class="card-text text-muted small mb-3">{{ game.developer }}</p>
+                        
+                        <!-- ストア別価格 -->
+                        <div class="mb-3">
+                            {% for store, price_info in game.prices.items() %}
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge bg-light text-dark">{{ store|upper }}</span>
+                                <div>
+                                    {% if price_info.discount > 0 %}
+                                    <span class="text-muted text-decoration-line-through small">¥{{ "{:,}".format(price_info.original) }}</span>
+                                    <span class="fw-bold text-danger ms-1">¥{{ "{:,}".format(price_info.current) }}</span>
+                                    <span class="badge bg-danger ms-1">-{{ price_info.discount }}%</span>
+                                    {% else %}
+                                    <span class="fw-bold">¥{{ "{:,}".format(price_info.current) }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-flex gap-2 mt-auto">
+                            <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
+                               class="btn btn-primary btn-sm flex-grow-1">
+                                <i class="bi bi-eye me-1"></i>詳細を見る
+                            </a>
+                            {% if current_user.is_authenticated %}
+                            <button class="btn btn-outline-danger btn-sm favorite-btn" 
+                                    data-game-id="{{ game.id }}" 
+                                    data-bs-toggle="tooltip" 
+                                    title="お気に入りに追加">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6 col-lg-4">
-                <div class="card game-card">
-                    <img src="{{ url_for('static', filename='images/game_placeholder.jpg') }}" 
-                         class="card-img-top" alt="The Witcher 3">
-                    <div class="card-body">
-                        <h5 class="card-title">The Witcher 3</h5>
-                        <p class="card-text">
-                            <span class="badge bg-danger">75% OFF</span>
-                            <span class="text-decoration-line-through text-muted">¥6,000</span>
-                            <span class="text-primary fw-bold fs-5">¥1,500</span>
-                        </p>
-                        <p class="small text-muted">Steam</p>
-                        <a href="{{ url_for('main.game_detail', game_id=2) }}" class="btn btn-primary">詳細を見る</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-4">
-                <div class="card game-card">
-                    <img src="{{ url_for('static', filename='images/game_placeholder.jpg') }}" 
-                         class="card-img-top" alt="Red Dead Redemption 2">
-                    <div class="card-body">
-                        <h5 class="card-title">Red Dead Redemption 2</h5>
-                        <p class="card-text">
-                            <span class="badge bg-warning">33% OFF</span>
-                            <span class="text-decoration-line-through text-muted">¥7,500</span>
-                            <span class="text-primary fw-bold fs-5">¥5,000</span>
-                        </p>
-                        <p class="small text-muted">Epic Games</p>
-                        <a href="{{ url_for('main.game_detail', game_id=3) }}" class="btn btn-primary">詳細を見る</a>
-                    </div>
-                </div>
-            </div>
+            {% endfor %}
         </div>
     </section>
 
     <!-- 統計情報 -->
-    <section class="bg-light p-4 rounded">
-        <h2 class="text-center mb-4">📊 サービス統計</h2>
+    <section class="mb-5">
         <div class="row text-center">
-            <div class="col-6 col-md-3">
-                <h3 class="text-primary">150+</h3>
-                <p class="text-muted">登録ゲーム数</p>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <i class="bi bi-controller display-4 text-primary"></i>
+                        <h3 class="mt-2 mb-0">1,500+</h3>
+                        <p class="text-muted">ゲーム数</p>
+                    </div>
+                </div>
             </div>
-            <div class="col-6 col-md-3">
-                <h3 class="text-success">50+</h3>
-                <p class="text-muted">利用ユーザー数</p>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <i class="bi bi-people display-4 text-success"></i>
+                        <h3 class="mt-2 mb-0">250+</h3>
+                        <p class="text-muted">ユーザー数</p>
+                    </div>
+                </div>
             </div>
-            <div class="col-6 col-md-3">
-                <h3 class="text-info">1,200</h3>
-                <p class="text-muted">本日の価格更新</p>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <i class="bi bi-graph-down display-4 text-warning"></i>
+                        <h3 class="mt-2 mb-0">89</h3>
+                        <p class="text-muted">開催中セール</p>
+                    </div>
+                </div>
             </div>
-            <div class="col-6 col-md-3">
-                <h3 class="text-warning">45</h3>
-                <p class="text-muted">本日の通知送信</p>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <i class="bi bi-bell display-4 text-info"></i>
+                        <h3 class="mt-2 mb-0">3,200+</h3>
+                        <p class="text-muted">お気に入り登録</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 機能紹介 -->
+    <section class="bg-light rounded-3 p-5">
+        <h2 class="text-center mb-5">GameBargainの特徴</h2>
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="bi bi-search display-5 text-primary"></i>
+                    </div>
+                    <div>
+                        <h4>価格比較</h4>
+                        <p class="text-muted">Steam、Epic Games Storeなど複数プラットフォームの価格を一括比較。最安値を瞬時に発見できます。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="bi bi-bell display-5 text-success"></i>
+                    </div>
+                    <div>
+                        <h4>価格通知</h4>
+                        <p class="text-muted">お気に入りゲームの価格が下がったら即座に通知。Discord連携でリアルタイム受信が可能です。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="bi bi-heart display-5 text-danger"></i>
+                    </div>
+                    <div>
+                        <h4>お気に入り管理</h4>
+                        <p class="text-muted">気になるゲームをお気に入り登録。価格推移を追跡して購入タイミングを逃しません。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="bi bi-discord display-5 text-info"></i>
+                    </div>
+                    <div>
+                        <h4>Discord連携</h4>
+                        <p class="text-muted">Discord認証でかんたんログイン。Botを追加すればサーバーでゲーム情報を共有できます。</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<style>
-.hero-section {
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-}
-
-.game-card {
-    transition: transform 0.2s;
-}
-
-.game-card:hover {
-    transform: translateY(-5px);
-}
-
-.card-img-top {
-    height: 200px;
-    object-fit: cover;
-}
-
-.fa-10x {
-    font-size: 10em !important;
-}
-</style>
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // お気に入りボタンの処理
+    const favoriteButtons = document.querySelectorAll('.favorite-btn');
+    favoriteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const gameId = this.dataset.gameId;
+            const icon = this.querySelector('i');
+            
+            fetch('/api/favorites', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ game_id: parseInt(gameId) })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    icon.classList.remove('bi-heart');
+                    icon.classList.add('bi-heart-fill');
+                    this.classList.remove('btn-outline-danger');
+                    this.classList.add('btn-danger');
+                    
+                    // 成功メッセージを表示
+                    const toast = new bootstrap.Toast(document.createElement('div'));
+                    // TODO: トースト通知の実装
+                } else {
+                    alert('お気に入りの追加に失敗しました。');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('エラーが発生しました。');
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

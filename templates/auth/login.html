@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}ログイン{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center align-items-center min-vh-100 py-5">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-controller display-4 text-primary"></i>
+                        <h2 class="mt-3 mb-2">GameBargainにログイン</h2>
+                        <p class="text-muted">ゲーム価格比較・監視サービス</p>
+                    </div>
+
+                    <!-- Discord ログインボタン -->
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('auth.discord_login') }}" 
+                           class="btn btn-primary btn-lg d-flex align-items-center justify-content-center py-3">
+                            <i class="bi bi-discord me-3 fs-4"></i>
+                            <span>Discordでログイン</span>
+                        </a>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <hr class="my-4">
+                        <p class="text-muted small">
+                            <i class="bi bi-shield-check me-1"></i>
+                            安全なDiscord OAuth2認証を使用
+                        </p>
+                    </div>
+
+                    <!-- 機能説明 -->
+                    <div class="mt-4">
+                        <h6 class="text-muted mb-3">ログイン後の機能:</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="bi bi-heart text-danger me-2"></i>
+                                <small>お気に入りゲームの管理</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-bell text-warning me-2"></i>
+                                <small>価格下落時の通知受信</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-graph-down text-success me-2"></i>
+                                <small>価格履歴の閲覧</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-discord text-info me-2"></i>
+                                <small>Discord Botとの連携</small>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- 利用規約等 -->
+                    <div class="text-center mt-4">
+                        <p class="text-muted small">
+                            ログインすることで、
+                            <a href="#" class="text-decoration-none">利用規約</a>と
+                            <a href="#" class="text-decoration-none">プライバシーポリシー</a>に
+                            同意したものとみなされます。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- セキュリティ情報 -->
+            <div class="text-center mt-4">
+                <div class="card bg-light border-0">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            安全性について
+                        </h6>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <i class="bi bi-lock text-success"></i>
+                                <p class="small text-muted mb-0">OAuth2認証</p>
+                            </div>
+                            <div class="col-4">
+                                <i class="bi bi-shield-check text-success"></i>
+                                <p class="small text-muted mb-0">データ暗号化</p>
+                            </div>
+                            <div class="col-4">
+                                <i class="bi bi-eye-slash text-success"></i>
+                                <p class="small text-muted mb-0">プライバシー保護</p>
+                            </div>
+                        </div>
+                        <p class="small text-muted mt-2 mb-0">
+                            Discordのパスワードは一切保存されません
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ゲストユーザー向け情報 -->
+            <div class="text-center mt-3">
+                <p class="text-muted">
+                    <a href="{{ url_for('main.index') }}" class="text-decoration-none">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        ログインせずに使い続ける
+                    </a>
+                </p>
+                <p class="small text-muted">
+                    ※ お気に入り機能や通知機能はログインが必要です
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Discord ログインボタンにホバー効果
+    const discordBtn = document.querySelector('a[href="{{ url_for("auth.discord_login") }}"]');
+    if (discordBtn) {
+        discordBtn.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#5865F2';
+            this.style.borderColor = '#5865F2';
+        });
+        
+        discordBtn.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+            this.style.borderColor = '';
+        });
+    }
+
+    // ページ読み込み時にフェードインアニメーション
+    const card = document.querySelector('.card');
+    if (card) {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = 'all 0.5s ease';
+        
+        setTimeout(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, 100);
+    }
+});
+</script>
+{% endblock %}

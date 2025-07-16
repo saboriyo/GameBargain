@@ -2,116 +2,182 @@
 GameBargain Main Application
 
 ゲーム価格比較・監視サービスのメインアプリケーション
+Discord Botと統合したFlaskアプリケーション
 """
 
 import os
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+import threading
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_migrate import Migrate
-from flask_login import LoginManager
-from celery import Celery
+from flask_login import LoginManager, login_required, current_user
+from datetime import datetime
+import logging
+from typing import Optional
 
+# Configuration
 from config import config
+from models import db
+from models import (
+    User,
+    Game,
+    Price,
+    Favorite,
+    Notification
+)
 
-# Extensionのインスタンス化
-db = SQLAlchemy()
+# Global extensions
 migrate = Migrate()
 login_manager = LoginManager()
 
 
-def make_celery(app):
-    """Celeryインスタンスの作成"""
-    celery = Celery(
-        app.import_name,
-        backend=app.config['CELERY_RESULT_BACKEND'],
-        broker=app.config['CELERY_BROKER_URL']
-    )
-    celery.conf.update(app.config)
-
-    class ContextTask(celery.Task):
-        """Flask application contextでタスクを実行"""
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
-
-    celery.Task = ContextTask
-    return celery
-
-
-def create_app(config_name=None):
-    """Application Factory Pattern"""
+def create_app(config_name: Optional[str] = None) -> Flask:
+    """
+    Application Factory Pattern
     
-    if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'default')
-    
+    Args:
+        config_name: 設定名（development, production, testing）
+        
+    Returns:
+        Flask: 設定済みFlaskアプリケーションインスタンス
+    """
     app = Flask(__name__)
+    
+    # 設定の読み込み
+    config_name = config_name or os.environ.get('FLASK_ENV', 'development')
+    config_name = str(config_name)
     app.config.from_object(config[config_name])
     
-    # Extensionの初期化
+    # Extensions の初期化
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     
     # ログイン設定
-    login_manager.login_view = 'auth.login'
+    login_manager.login_view = 'auth.login'  # type: ignore
     login_manager.login_message = 'ログインが必要です。'
+    login_manager.login_message_category = 'info'
     
-    # Blueprintの登録
-    from web.routes import main_bp
-    from web.auth import auth_bp
-    from web.api import api_bp
+    # ログ設定
+    setup_logging(app)
     
-    app.register_blueprint(main_bp)
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(api_bp, url_prefix='/api')
+    # モデルの登録
+    register_models(app)
+    
+    # ブループリントの登録
+    register_blueprints(app)
+    
+    # エラーハンドラーの登録
+    register_error_handlers(app)
+    
+    # アプリケーションコンテキスト内でテーブル作成
+    with app.app_context():
+        db.create_all()
+        app.logger.info("データベーステーブルが作成されました")
+    
+    # CLIコマンドの登録
+    from cli_commands import register_commands
+    register_commands(app)
     
     return app
 
 
+def setup_logging(app: Flask) -> None:
+    """
+    ログ設定のセットアップ
+    
+    Args:
+        app: Flaskアプリケーションインスタンス
+    """
+    if not app.debug:
+        # ログディレクトリの作成
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+        
+        # ファイルハンドラーの設定
+        file_handler = logging.FileHandler('logs/gamebargain.log')
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+        ))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+        
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('GameBargain startup')
+
+
+def register_models(app: Flask) -> None:
+    """
+    モデルの登録とグローバル変数の設定
+    
+    Args:
+        app: Flaskアプリケーションインスタンス
+    """
+    # modelsパッケージから作成済みのモデルをインポート
+    from models import User
+    
+    # ユーザーローダーの設定
+    @login_manager.user_loader
+    def load_user(user_id: str):
+        """Flask-Login用ユーザーローダー"""
+        return db.session.get(User, int(user_id))
+
+
+def register_blueprints(app: Flask) -> None:
+    """
+    ブループリントの登録
+    
+    Args:
+        app: Flaskアプリケーションインスタンス
+    """
+    # メインルート
+    from web.routes import main_bp
+    app.register_blueprint(main_bp)
+    
+    # 認証ルート
+    from web.auth import auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    
+    # APIルート
+    from web.api import api_bp
+    app.register_blueprint(api_bp, url_prefix='/api')
+
+
+def register_error_handlers(app: Flask) -> None:
+    """
+    エラーハンドラーの登録
+    
+    Args:
+        app: Flaskアプリケーションインスタンス
+    """
+    @app.errorhandler(404)
+    def not_found_error(error):
+        """404エラーハンドラー"""
+        return render_template('errors/404.html'), 404
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        """500エラーハンドラー"""
+        db.session.rollback()
+        return render_template('errors/500.html'), 500
+    
+    @app.errorhandler(403)
+    def forbidden_error(error):
+        """403エラーハンドラー"""
+        return render_template('errors/403.html'), 403
+
 # アプリケーションインスタンスの作成
 app = create_app()
-celery = make_celery(app)
-
-# Modelsのグローバル変数を初期化
-User = None
-Game = None
-Store = None
-Price = None
-Favorite = None
-Notification = None
-
-# アプリケーションコンテキスト内でモデルを作成
-with app.app_context():
-    from models import create_models
-    models = create_models(db)
-    
-    # グローバル変数に設定
-    User = models['User']
-    Game = models['Game']  
-    Store = models['Store']
-    Price = models['Price']
-    Favorite = models['Favorite']
-    Notification = models['Notification']
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    """ユーザーローダー"""
-    if User is None:
-        return None
-    return User.query.get(int(user_id))
 
 
 if __name__ == '__main__':
-    with app.app_context():
-        # データベースディレクトリの作成
-        import os
-        os.makedirs('data', exist_ok=True)
-        
-        # テーブル作成
-        db.create_all()
-        print("データベースが正常に初期化されました。")
+    """
+    開発サーバーの起動
     
-    # アプリケーション起動
-    print("GameBargainアプリケーションを起動しています...")
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    プロダクション環境ではgunicornを使用することを推奨
+    """
+    app.logger.info("GameBargain development server starting...")
+    app.run(
+        host='0.0.0.0',
+        port=int(os.environ.get('PORT', 8000)),
+        debug=app.config.get('DEBUG', False)
+    )

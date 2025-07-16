@@ -2,40 +2,165 @@
 Price Model
 
 価格情報を管理するモデル
+現在価格と価格履歴を管理します。
 """
 
 from datetime import datetime
+from decimal import Decimal
+from typing import Optional, TYPE_CHECKING, Any
 
-def create_price_model(db):
-    """SQLAlchemyのdbインスタンスを使ってPriceモデルを作成"""
+from sqlalchemy import Column, String, Integer, ForeignKey, Boolean, DateTime, DECIMAL, Index
+from sqlalchemy.orm import relationship
+from models import db
+
+# 型チェック時のみインポート（循環参照回避）
+if TYPE_CHECKING:
+    from .game import Game
+
+
+class Price(db.Model):
+    """
+    現在価格モデル (設計書 3.3.3 準拠)
     
-    class Price(db.Model):
-        __tablename__ = 'prices'
-        
-        price_id = db.Column(db.Integer, primary_key=True)
-        game_id = db.Column(db.Integer, db.ForeignKey('games.game_id'), nullable=False)
-        store = db.Column(db.String(20), nullable=False, default='steam')
-        regular_price = db.Column(db.Numeric(10, 2))
-        sale_price = db.Column(db.Numeric(10, 2))
-        discount_rate = db.Column(db.Integer, default=0)
-        is_on_sale = db.Column(db.Boolean, default=False)
-        currency = db.Column(db.String(3), default='JPY')
-        created_at = db.Column(db.DateTime, default=datetime.utcnow)
-        
-        def __repr__(self):
-            return f'<Price {self.game.title} - {self.store}: ¥{self.current_price}>'
-        
-        @property
-        def current_price(self):
-            """現在の価格（セール価格があればセール価格、なければ通常価格）"""
-            return self.sale_price if self.is_on_sale and self.sale_price else self.regular_price
-        
-        @property
-        def formatted_price(self):
-            """フォーマットされた価格文字列"""
-            price = self.current_price
-            if price is None:
-                return "価格情報なし"
-            return f"¥{int(price):,}"
+    各ストアの最新価格情報を管理します。
+    セール情報や割引率も含みます。
+    """
+    __tablename__ = 'prices'
     
-    return Price
+    # プライマリキー
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, ForeignKey('games.id'), nullable=False)
+    store = Column(String(20), nullable=False)  # 'steam', 'epic'
+    regular_price = Column(DECIMAL(10, 2))
+    sale_price = Column(DECIMAL(10, 2))
+    discount_rate = Column(Integer, default=0)  # 割引率 (0-100)
+    currency = Column(String(3), default='JPY')
+    is_on_sale = Column(Boolean, default=False, index=True)
+    sale_start_date = Column(DateTime)
+    sale_end_date = Column(DateTime)
+    store_url = Column(String(500))  # 購入ページURL
+    
+    # タイムスタンプ
+    created_at = Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    __table_args__ = (
+        Index('idx_prices_game_store', 'game_id', 'store'),
+    )
+    
+    # リレーションシップ（型チェック時のみ型注釈）
+    if TYPE_CHECKING:
+        game: 'Game'
+    else:
+        game = relationship('Game', back_populates='prices')
+    
+    def get_current_price(self) -> Optional[Decimal]:
+        """
+        現在の有効価格を取得
+        
+        Returns:
+            Optional[Decimal]: セール中の場合はセール価格、そうでなければ通常価格
+        """
+        is_on_sale = getattr(self, 'is_on_sale', False)
+        if is_on_sale:
+            sale_price = getattr(self, 'sale_price', None)
+            if sale_price is not None:
+                return Decimal(str(sale_price))
+        
+        regular_price = getattr(self, 'regular_price', None)
+        if regular_price is not None:
+            return Decimal(str(regular_price))
+        
+        return None
+    
+    def update_price(self, regular_price: Decimal, sale_price: Optional[Decimal] = None,
+                    discount_rate: int = 0, is_on_sale: bool = False) -> None:
+        """
+        価格情報を更新
+        
+        Args:
+            regular_price: 通常価格
+            sale_price: セール価格
+            discount_rate: 割引率
+            is_on_sale: セール中フラグ
+        """
+        setattr(self, 'regular_price', regular_price)
+        setattr(self, 'sale_price', sale_price)
+        setattr(self, 'discount_rate', discount_rate)
+        setattr(self, 'is_on_sale', is_on_sale)
+        
+        # セール期間の自動設定
+        if is_on_sale and not getattr(self, 'sale_start_date', None):
+            setattr(self, 'sale_start_date', datetime.utcnow())
+        elif not is_on_sale:
+            setattr(self, 'sale_end_date', datetime.utcnow())
+    
+    def calculate_savings(self) -> Decimal:
+        """
+        節約額を計算
+        
+        Returns:
+            Decimal: 節約額（通常価格 - セール価格）
+        """
+        regular_price = getattr(self, 'regular_price', None)
+        sale_price = getattr(self, 'sale_price', None)
+        
+        if regular_price and sale_price:
+            return Decimal(str(regular_price)) - Decimal(str(sale_price))
+        return Decimal('0')
+    
+    def is_sale_active(self) -> bool:
+        """
+        セールが有効かチェック
+        
+        Returns:
+            bool: セールが有効な場合True
+        """
+        is_on_sale = getattr(self, 'is_on_sale', False)
+        if not is_on_sale:
+            return False
+        
+        now = datetime.utcnow()
+        sale_start = getattr(self, 'sale_start_date', None)
+        sale_end = getattr(self, 'sale_end_date', None)
+        
+        # 開始日のチェック
+        if sale_start and now < sale_start:
+            return False
+        
+        # 終了日のチェック
+        if sale_end and now > sale_end:
+            return False
+        
+        return True
+    
+    def get_formatted_price(self) -> str:
+        """
+        フォーマット済み価格文字列を取得
+        
+        Returns:
+            str: フォーマット済み価格
+        """
+        current_price = self.get_current_price()
+        if current_price is None:
+            return "価格不明"
+        
+        currency = getattr(self, 'currency', 'JPY')
+        
+        if currency == 'JPY':
+            return f"¥{current_price:,.0f}" if current_price % 1 == 0 else f"¥{current_price:,.2f}"
+        else:
+            return f"{currency} {current_price:,.2f}"
+    
+    def __repr__(self) -> str:
+        """
+        文字列表現
+        
+        Returns:
+            str: 価格の文字列表現
+        """
+        store = getattr(self, 'store', 'Unknown')
+        formatted_price = self.get_formatted_price()
+        return f'<Price {store}: {formatted_price}>'
+
+

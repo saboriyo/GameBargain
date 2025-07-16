@@ -1,274 +1,497 @@
-// GameBargain JavaScript
+/**
+ * GameBargain Frontend JavaScript
+ * 
+ * フロントエンド機能の実装
+ * お気に入り管理、検索候補、価格アラートなどの機能を提供します。
+ */
 
-document.addEventListener('DOMContentLoaded', function() {
-    // 初期化処理
-    initializeApp();
-});
+// アプリケーション設定
+const GameBargain = {
+    config: {
+        apiBaseUrl: '/api',
+        searchDelay: 300,
+        toastDuration: 5000,
+        maxRetries: 3
+    },
+    
+    // 初期化
+    init() {
+        this.initEventListeners();
+        this.initTooltips();
+        this.initSearchSuggestions();
+        this.initFavoriteButtons();
+        this.initPriceAlerts();
+        console.log('GameBargain frontend initialized');
+    },
 
-function initializeApp() {
-    console.log('GameBargain App initialized');
-    
-    // フェードインアニメーション
-    addFadeInAnimation();
-    
-    // 検索フォームの強化
-    enhanceSearchForm();
-    
+    // イベントリスナーの初期化
+    initEventListeners() {
+        document.addEventListener('DOMContentLoaded', () => {
+            this.initBootstrapComponents();
+        });
+
+        // ページ読み込み完了時の処理
+        window.addEventListener('load', () => {
+            this.hideLoadingSpinner();
+        });
+
+        // エラーハンドリング
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+            this.showToast('エラーが発生しました', 'error');
+        });
+    },
+
+    // Bootstrapコンポーネントの初期化
+    initBootstrapComponents() {
+        // Tooltipの初期化
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+
+        // Popoverの初期化
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
+    },
+
     // ツールチップの初期化
-    initializeTooltips();
-    
-    // 統計データの更新
-    updateStats();
-}
-
-// フェードインアニメーション
-function addFadeInAnimation() {
-    const elements = document.querySelectorAll('.card, .alert');
-    elements.forEach((el, index) => {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(20px)';
-        
-        setTimeout(() => {
-            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-            el.style.opacity = '1';
-            el.style.transform = 'translateY(0)';
-        }, index * 100);
-    });
-}
-
-// 検索フォームの強化
-function enhanceSearchForm() {
-    const searchInputs = document.querySelectorAll('input[name="q"]');
-    
-    searchInputs.forEach(input => {
-        // プレースホルダーアニメーション
-        input.addEventListener('focus', function() {
-            this.style.transform = 'scale(1.02)';
-            this.style.transition = 'transform 0.2s ease';
+    initTooltips() {
+        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltips.forEach(tooltip => {
+            new bootstrap.Tooltip(tooltip);
         });
+    },
+
+    // 検索候補機能の初期化
+    initSearchSuggestions() {
+        const searchInputs = document.querySelectorAll('input[type="search"]');
         
-        input.addEventListener('blur', function() {
-            this.style.transform = 'scale(1)';
+        searchInputs.forEach(input => {
+            let searchTimeout;
+            let suggestionsContainer;
+
+            input.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                const query = e.target.value.trim();
+
+                if (query.length < 2) {
+                    this.hideSuggestions(input);
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    this.fetchSearchSuggestions(query, input);
+                }, this.config.searchDelay);
+            });
+
+            input.addEventListener('blur', (e) => {
+                // 少し遅延させて候補クリックを可能にする
+                setTimeout(() => {
+                    this.hideSuggestions(input);
+                }, 200);
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    this.hideSuggestions(input);
+                }
+            });
         });
-        
-        // エンターキーでの検索
-        input.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                this.closest('form').submit();
+    },
+
+    // 検索候補の取得
+    async fetchSearchSuggestions(query, inputElement) {
+        try {
+            const response = await fetch(`${this.config.apiBaseUrl}/search/suggestions?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            
+            if (data.suggestions && data.suggestions.length > 0) {
+                this.showSuggestions(data.suggestions, inputElement);
+            } else {
+                this.hideSuggestions(inputElement);
             }
+        } catch (error) {
+            console.error('Search suggestions error:', error);
+        }
+    },
+
+    // 検索候補の表示
+    showSuggestions(suggestions, inputElement) {
+        this.hideSuggestions(inputElement); // 既存の候補を削除
+
+        const suggestionsContainer = document.createElement('div');
+        suggestionsContainer.className = 'search-suggestions';
+        
+        suggestions.forEach(suggestion => {
+            const item = document.createElement('div');
+            item.className = 'search-suggestion-item';
+            item.textContent = suggestion;
+            
+            item.addEventListener('click', () => {
+                inputElement.value = suggestion;
+                this.hideSuggestions(inputElement);
+                
+                // 検索フォームの送信
+                const form = inputElement.closest('form');
+                if (form) {
+                    form.submit();
+                }
+            });
+            
+            suggestionsContainer.appendChild(item);
         });
-    });
-}
 
-// ツールチップの初期化
-function initializeTooltips() {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-}
+        // 入力フィールドの親要素に候補を追加
+        const parent = inputElement.parentElement;
+        parent.style.position = 'relative';
+        parent.appendChild(suggestionsContainer);
+    },
 
-// 統計データの更新
-function updateStats() {
-    fetch('/api/stats')
-        .then(response => response.json())
-        .then(data => {
-            // 統計データを更新（もしページに統計セクションがあれば）
-            updateStatElement('total-games', data.total_games);
-            updateStatElement('total-users', data.total_users);
-            updateStatElement('price-updates-today', data.price_updates_today);
-            updateStatElement('notifications-sent-today', data.notifications_sent_today);
-        })
-        .catch(error => {
-            console.log('統計データの取得に失敗しました:', error);
+    // 検索候補の非表示
+    hideSuggestions(inputElement) {
+        const parent = inputElement.parentElement;
+        const existing = parent.querySelector('.search-suggestions');
+        if (existing) {
+            existing.remove();
+        }
+    },
+
+    // お気に入りボタンの初期化
+    initFavoriteButtons() {
+        const favoriteButtons = document.querySelectorAll('.favorite-btn');
+        
+        favoriteButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleFavorite(button);
+            });
         });
-}
+    },
 
-function updateStatElement(id, value) {
-    const element = document.getElementById(id);
-    if (element) {
-        animateNumber(element, parseInt(element.textContent) || 0, value);
-    }
-}
+    // お気に入りの切り替え
+    async toggleFavorite(button) {
+        const gameId = button.dataset.gameId;
+        const icon = button.querySelector('i');
+        const isFavorited = button.classList.contains('favorited');
 
-// 数値アニメーション
-function animateNumber(element, start, end) {
-    const duration = 1000;
-    const startTime = performance.now();
-    
-    function animate(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        // イージング関数
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const current = Math.round(start + (end - start) * eased);
-        
-        element.textContent = current.toLocaleString();
-        
-        if (progress < 1) {
-            requestAnimationFrame(animate);
+        // UI即座更新（楽観的更新）
+        this.updateFavoriteButtonUI(button, !isFavorited);
+
+        try {
+            const method = isFavorited ? 'DELETE' : 'POST';
+            const response = await fetch(`${this.config.apiBaseUrl}/favorites`, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ game_id: parseInt(gameId) })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                // エラー時は元に戻す
+                this.updateFavoriteButtonUI(button, isFavorited);
+                this.showToast(data.message || 'お気に入りの更新に失敗しました', 'error');
+                return;
+            }
+
+            this.showToast(data.message, 'success');
+
+        } catch (error) {
+            console.error('Favorite toggle error:', error);
+            // エラー時は元に戻す
+            this.updateFavoriteButtonUI(button, isFavorited);
+            this.showToast('ネットワークエラーが発生しました', 'error');
         }
-    }
-    
-    requestAnimationFrame(animate);
-}
+    },
 
-// お気に入り機能
-function addToFavorites(gameId) {
-    // ログインチェック
-    if (!isUserLoggedIn()) {
-        showLoginModal();
-        return;
-    }
-    
-    fetch('/api/favorites', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify({ game_id: gameId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('お気に入りに追加しました！', 'success');
-            updateFavoriteButton(gameId, true);
+    // お気に入りボタンUIの更新
+    updateFavoriteButtonUI(button, favorited) {
+        const icon = button.querySelector('i');
+        
+        if (favorited) {
+            icon.classList.remove('bi-heart');
+            icon.classList.add('bi-heart-fill');
+            button.classList.remove('btn-outline-danger');
+            button.classList.add('btn-danger', 'favorited');
+            button.setAttribute('title', 'お気に入りから削除');
         } else {
-            showNotification('お気に入りの追加に失敗しました。', 'error');
+            icon.classList.remove('bi-heart-fill');
+            icon.classList.add('bi-heart');
+            button.classList.remove('btn-danger', 'favorited');
+            button.classList.add('btn-outline-danger');
+            button.setAttribute('title', 'お気に入りに追加');
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('エラーが発生しました。', 'error');
-    });
-}
 
-// 価格通知設定
-function setNotification(gameId) {
-    if (!isUserLoggedIn()) {
-        showLoginModal();
-        return;
-    }
-    
-    const targetPrice = prompt('希望価格を入力してください（円）:');
-    if (!targetPrice || isNaN(targetPrice)) {
-        return;
-    }
-    
-    fetch('/api/notifications', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify({ 
-            game_id: gameId,
-            target_price: parseInt(targetPrice)
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(`¥${parseInt(targetPrice).toLocaleString()} 以下になったら通知します！`, 'success');
-        } else {
-            showNotification('通知設定に失敗しました。', 'error');
+        // ツールチップの更新
+        const tooltip = bootstrap.Tooltip.getInstance(button);
+        if (tooltip) {
+            tooltip.dispose();
+            new bootstrap.Tooltip(button);
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('エラーが発生しました。', 'error');
-    });
-}
+    },
 
-// 通知表示
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
-    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    notification.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // 5秒後に自動削除
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 5000);
-}
+    // 価格アラート機能の初期化
+    initPriceAlerts() {
+        const alertButtons = document.querySelectorAll('.price-alert-btn');
+        
+        alertButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showPriceAlertModal(button.dataset.gameId);
+            });
+        });
+    },
 
-// ユーザーログイン状態チェック
-function isUserLoggedIn() {
-    // サーバーサイドで設定されたユーザー情報をチェック
-    return window.currentUser && window.currentUser.is_authenticated;
-}
-
-// ログインモーダル表示
-function showLoginModal() {
-    const modal = new bootstrap.Modal(document.getElementById('loginModal') || createLoginModal());
-    modal.show();
-}
-
-// ログインモーダル作成
-function createLoginModal() {
-    const modal = document.createElement('div');
-    modal.className = 'modal fade';
-    modal.id = 'loginModal';
-    modal.innerHTML = `
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">ログインが必要です</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>この機能を使用するにはログインが必要です。</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                    <a href="/auth/login" class="btn btn-primary">ログイン</a>
+    // 価格アラートモーダルの表示
+    showPriceAlertModal(gameId) {
+        // モーダルHTML の生成
+        const modalHtml = `
+            <div class="modal fade" id="priceAlertModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">価格アラート設定</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="priceAlertForm">
+                                <div class="mb-3">
+                                    <label for="thresholdPrice" class="form-label">通知価格（円）</label>
+                                    <input type="number" class="form-control" id="thresholdPrice" 
+                                           placeholder="例: 2000" min="0" step="100" required>
+                                    <div class="form-text">この価格以下になったら通知します</div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                            <button type="button" class="btn btn-primary" id="savePriceAlert">設定する</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    return modal;
-}
+        `;
 
-// CSRFトークン取得
-function getCSRFToken() {
-    const meta = document.querySelector('meta[name="csrf-token"]');
-    return meta ? meta.getAttribute('content') : '';
-}
+        // モーダルを追加
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('priceAlertModal'));
+        
+        // 保存ボタンのイベント
+        document.getElementById('savePriceAlert').addEventListener('click', () => {
+            this.savePriceAlert(gameId, modal);
+        });
 
-// お気に入りボタンの状態更新
-function updateFavoriteButton(gameId, isFavorite) {
-    const buttons = document.querySelectorAll(`[onclick="addToFavorites(${gameId})"]`);
-    buttons.forEach(button => {
-        if (isFavorite) {
-            button.innerHTML = '<i class="fas fa-heart me-1" style="color: red;"></i>お気に入り済み';
-            button.className = button.className.replace('btn-outline-primary', 'btn-outline-danger');
+        // モーダル削除のイベント
+        modal._element.addEventListener('hidden.bs.modal', () => {
+            modal._element.remove();
+        });
+
+        modal.show();
+    },
+
+    // 価格アラートの保存
+    async savePriceAlert(gameId, modal) {
+        const thresholdPrice = document.getElementById('thresholdPrice').value;
+        
+        if (!thresholdPrice || thresholdPrice <= 0) {
+            this.showToast('有効な価格を入力してください', 'error');
+            return;
         }
-    });
-}
 
-// 価格フォーマット
-function formatPrice(price) {
-    return `¥${parseInt(price).toLocaleString()}`;
-}
+        try {
+            const response = await fetch(`${this.config.apiBaseUrl}/price-alerts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    game_id: parseInt(gameId),
+                    threshold_price: parseFloat(thresholdPrice)
+                })
+            });
 
-// エラーハンドリング
-window.addEventListener('error', function(e) {
-    console.error('JavaScript Error:', e.error);
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast('価格アラートを設定しました', 'success');
+                modal.hide();
+            } else {
+                this.showToast(data.message || '設定に失敗しました', 'error');
+            }
+
+        } catch (error) {
+            console.error('Price alert error:', error);
+            this.showToast('ネットワークエラーが発生しました', 'error');
+        }
+    },
+
+    // トースト通知の表示
+    showToast(message, type = 'info') {
+        const toastContainer = this.getOrCreateToastContainer();
+        
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-${this.getToastColor(type)} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-${this.getToastIcon(type)} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastElement, { delay: this.config.toastDuration });
+        
+        toast.show();
+
+        // トースト削除のイベント
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+    },
+
+    // トーストコンテナの取得または作成
+    getOrCreateToastContainer() {
+        let container = document.querySelector('.toast-container');
+        
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container position-fixed top-0 end-0 p-3';
+            container.style.zIndex = '1055';
+            document.body.appendChild(container);
+        }
+        
+        return container;
+    },
+
+    // トーストの色を取得
+    getToastColor(type) {
+        const colors = {
+            success: 'success',
+            error: 'danger',
+            warning: 'warning',
+            info: 'primary'
+        };
+        return colors[type] || 'primary';
+    },
+
+    // トーストアイコンを取得
+    getToastIcon(type) {
+        const icons = {
+            success: 'check-circle',
+            error: 'exclamation-triangle',
+            warning: 'exclamation-triangle-fill',
+            info: 'info-circle'
+        };
+        return icons[type] || 'info-circle';
+    },
+
+    // ローディングスピナーの表示
+    showLoadingSpinner(element) {
+        const spinner = document.createElement('div');
+        spinner.className = 'loading-spinner';
+        element.appendChild(spinner);
+    },
+
+    // ローディングスピナーの非表示
+    hideLoadingSpinner() {
+        const spinners = document.querySelectorAll('.loading-spinner');
+        spinners.forEach(spinner => spinner.remove());
+    },
+
+    // ページ遷移時のローディング表示
+    showPageLoading() {
+        const loadingHtml = `
+            <div id="pageLoading" class="position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex align-items-center justify-content-center" style="z-index: 9999;">
+                <div class="text-center">
+                    <div class="loading-spinner mb-3"></div>
+                    <p class="text-muted">読み込み中...</p>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', loadingHtml);
+    },
+
+    // ページローディングの非表示
+    hidePageLoading() {
+        const loading = document.getElementById('pageLoading');
+        if (loading) {
+            loading.remove();
+        }
+    },
+
+    // API呼び出しのユーティリティ
+    async apiCall(endpoint, options = {}) {
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        };
+
+        const mergedOptions = { ...defaultOptions, ...options };
+        
+        try {
+            const response = await fetch(`${this.config.apiBaseUrl}${endpoint}`, mergedOptions);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('API call error:', error);
+            throw error;
+        }
+    },
+
+    // 価格フォーマット
+    formatPrice(price, currency = 'JPY') {
+        if (typeof price !== 'number') return '価格未定';
+        
+        const formatter = new Intl.NumberFormat('ja-JP', {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
+        
+        return formatter.format(price);
+    },
+
+    // 日付フォーマット
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ja-JP', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    },
+
+    // デバッグモード
+    enableDebugMode() {
+        window.GameBargainDebug = {
+            config: this.config,
+            showToast: this.showToast.bind(this),
+            apiCall: this.apiCall.bind(this)
+        };
+        console.log('Debug mode enabled. Use window.GameBargainDebug');
+    }
+};
+
+// アプリケーションの初期化
+document.addEventListener('DOMContentLoaded', () => {
+    GameBargain.init();
+    
+    // デバッグモード（開発環境のみ）
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        GameBargain.enableDebugMode();
+    }
 });
 
-// パフォーマンス監視
-window.addEventListener('load', function() {
-    const loadTime = performance.now();
-    console.log(`Page loaded in ${loadTime.toFixed(2)}ms`);
-});
+// グローバルに公開
+window.GameBargain = GameBargain;
