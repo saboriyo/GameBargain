@@ -6,7 +6,7 @@
 """
 
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import desc, func, and_
 from sqlalchemy.orm import joinedload
 
@@ -162,7 +162,7 @@ class UserService(BaseService):
             favorite = self.Favorite(
                 user_id=user_id,
                 game_id=game_id,
-                added_at=datetime.utcnow()
+                added_at=datetime.now(timezone.utc)
             )
             
             from models import db
@@ -304,7 +304,7 @@ class UserService(BaseService):
             if existing_alert:
                 # 既存のアラートがある場合は更新
                 existing_alert.threshold_price = threshold_price
-                existing_alert.updated_at = datetime.utcnow()
+                existing_alert.updated_at = datetime.now(timezone.utc)
                 message = "価格アラートを更新しました"
                 alert_id = existing_alert.id
             else:
@@ -403,7 +403,7 @@ class UserService(BaseService):
             if 'deal_alerts' in settings:
                 user.deal_alerts = settings['deal_alerts']
             
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(timezone.utc)
             
             from models import db
             db.session.commit()
@@ -443,7 +443,7 @@ class UserService(BaseService):
             if 'profile_public' in settings:
                 user.profile_public = settings['profile_public']
             
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(timezone.utc)
             
             from models import db
             db.session.commit()
@@ -477,7 +477,7 @@ class UserService(BaseService):
             Dict[str, Any]: アクティビティ一覧
         """
         try:
-            start_date = datetime.utcnow() - timedelta(days=days)
+            start_date = datetime.now(timezone.utc) - timedelta(days=days)
             
             # お気に入り追加のアクティビティ
             favorites = (self.Favorite.query
@@ -589,7 +589,7 @@ class UserService(BaseService):
             favorite.price_change = None
             if latest_price:
                 # 1週間前の価格と比較
-                week_ago = datetime.utcnow() - timedelta(days=7)
+                week_ago = datetime.now(timezone.utc) - timedelta(days=7)
                 old_price = (self.Price.query
                            .filter(
                                self.Price.game_id == favorite.game_id,

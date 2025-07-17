@@ -5,7 +5,7 @@ Price Model
 現在価格と価格履歴を管理します。
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional, TYPE_CHECKING, Any
 
@@ -41,8 +41,8 @@ class Price(db.Model):
     store_url = Column(String(500))  # 購入ページURL
     
     # タイムスタンプ
-    created_at = Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     __table_args__ = (
         Index('idx_prices_game_store', 'game_id', 'store'),
@@ -90,10 +90,10 @@ class Price(db.Model):
         setattr(self, 'is_on_sale', is_on_sale)
         
         # セール期間の自動設定
-        if is_on_sale and not getattr(self, 'sale_start_date', None):
-            setattr(self, 'sale_start_date', datetime.utcnow())
-        elif not is_on_sale:
-            setattr(self, 'sale_end_date', datetime.utcnow())
+        if is_on_sale:
+            setattr(self, 'sale_start_date', datetime.now(timezone.utc))
+        else:
+            setattr(self, 'sale_end_date', datetime.now(timezone.utc))
     
     def calculate_savings(self) -> Decimal:
         """
@@ -120,7 +120,7 @@ class Price(db.Model):
         if not is_on_sale:
             return False
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         sale_start = getattr(self, 'sale_start_date', None)
         sale_end = getattr(self, 'sale_end_date', None)
         

@@ -5,7 +5,7 @@ Notification Model
 Discord通知やメール通知の履歴と状態を管理します。
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, TYPE_CHECKING
 from enum import Enum
 
@@ -55,8 +55,8 @@ class Notification(db.Model):
     priority = Column(Integer, default=1)  # 1=低, 2=通常, 3=高
     
     # タイムスタンプ
-    created_at = Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     __table_args__ = (
         Index('idx_notifications_user_type', 'user_id', 'notification_type'),
@@ -96,7 +96,7 @@ class Notification(db.Model):
         通知を送信済みとしてマーク
         """
         setattr(self, 'is_sent', True)
-        setattr(self, 'sent_at', datetime.utcnow())
+        setattr(self, 'sent_at', datetime.now(timezone.utc))
     
     def increment_retry(self) -> None:
         """
@@ -104,7 +104,7 @@ class Notification(db.Model):
         """
         retry_count = getattr(self, 'retry_count', 0)
         setattr(self, 'retry_count', retry_count + 1)
-        setattr(self, 'last_retry_at', datetime.utcnow())
+        setattr(self, 'last_retry_at', datetime.now(timezone.utc))
     
     def can_retry(self, max_retries: int = 3) -> bool:
         """
@@ -156,7 +156,7 @@ class Notification(db.Model):
             "title": title,
             "description": message,
             "color": color_map.get(notification_type, 0x808080),  # デフォルトグレー
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         # ゲーム情報があれば追加

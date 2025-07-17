@@ -6,7 +6,7 @@ Game Repository
 """
 
 from typing import List, Optional, Dict, Any, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import and_, or_, asc, desc, func
 from sqlalchemy.orm import Session
 
@@ -262,7 +262,7 @@ class GameRepository:
                     'steam_url': steam_game.get('steam_url') or f"https://store.steampowered.com/app/{steam_appid}/",
                     'steam_rating': steam_game.get('steam_rating') or existing_game.steam_rating,
                     'metacritic_score': steam_game.get('metacritic_score') or existing_game.metacritic_score,
-                    'updated_at': datetime.utcnow()
+                    'updated_at': datetime.now(timezone.utc)
                 }
                 
                 # 価格情報の更新（有効な値のみ）

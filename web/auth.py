@@ -10,9 +10,13 @@ from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlencode
 import requests
 from typing import Optional, Dict, Any
+from os import getenv
 
 # ブループリントの作成
 auth_bp = Blueprint('auth', __name__)
+
+# グローバル変数として定義
+REDIRECT_URI = getenv('DISCORD_REDIRECT_URI', 'http://localhost:8000/auth/discord/callback')
 
 
 @auth_bp.route('/login')
@@ -56,9 +60,8 @@ def discord_login():
     """
     # Discord OAuth2設定の確認
     client_id = current_app.config.get('DISCORD_CLIENT_ID')
-    redirect_uri = current_app.config.get('DISCORD_REDIRECT_URI')
     
-    if not client_id or not redirect_uri:
+    if not client_id or not REDIRECT_URI:
         flash('Discord認証の設定が完了していません。管理者にお問い合わせください。', 'error')
         return redirect(url_for('auth.login'))
     
@@ -66,9 +69,9 @@ def discord_login():
     discord_oauth_url = 'https://discord.com/api/oauth2/authorize'
     params = {
         'client_id': client_id,
-        'redirect_uri': redirect_uri,
+        'redirect_uri': REDIRECT_URI,
         'response_type': 'code',
-        'scope': 'identify email guilds',
+        'scope': 'identify email connections guilds guilds.join',
         'state': 'gamebargain_auth'  # CSRF保護
     }
     
@@ -76,7 +79,7 @@ def discord_login():
     session['oauth_state'] = params['state']
     
     oauth_url = f"{discord_oauth_url}?{urlencode(params)}"
-    current_app.logger.info("Discord OAuth認証開始")
+    current_app.logger.info(f"Generated OAuth URL: {oauth_url}")
     
     return redirect(oauth_url)
 
@@ -160,7 +163,7 @@ def get_discord_token(code: str) -> Optional[Dict[str, Any]]:
         'client_secret': current_app.config.get('DISCORD_CLIENT_SECRET'),
         'grant_type': 'authorization_code',
         'code': code,
-        'redirect_uri': current_app.config.get('DISCORD_REDIRECT_URI'),
+        'redirect_uri': REDIRECT_URI,
     }
     
     headers = {
@@ -220,18 +223,16 @@ def handle_discord_user(user_info: Dict[str, Any], token_data: Dict[str, Any]):
         from models import User
         from app import db
         
-        # 標準SQLAlchemyパターンを使用
-        UserModel = User
         
         # Discord IDでユーザーを検索
         discord_id = user_info.get('id')
-        user = UserModel.query.filter_by(discord_id=discord_id).first()
+        user = User.query.filter_by(discord_id=discord_id).first()
         
         if not user:
             # 新規ユーザー作成
             username = user_info.get('username', '')
             if discord_id and username:
-                user = UserModel(
+                user = User(
                     discord_id=str(discord_id),
                     username=username
                 )
@@ -247,9 +248,9 @@ def handle_discord_user(user_info: Dict[str, Any], token_data: Dict[str, Any]):
             setattr(user, 'refresh_token', token_data.get('refresh_token'))
             
             # トークン有効期限の設定
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
             expires_in = token_data.get('expires_in', 3600)
-            setattr(user, 'token_expires_at', datetime.utcnow() + timedelta(seconds=expires_in))
+            setattr(user, 'token_expires_at', datetime.now(timezone.utc) + timedelta(seconds=expires_in))
             
             user.update_last_login()
         

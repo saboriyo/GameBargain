@@ -13,6 +13,10 @@ from flask_login import LoginManager, login_required, current_user
 from datetime import datetime
 import logging
 from typing import Optional
+from dotenv import load_dotenv
+
+# .envファイルの読み込み
+load_dotenv()
 
 # Configuration
 from config import config

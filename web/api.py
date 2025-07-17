@@ -7,7 +7,7 @@ APIエンドポイント
 
 from flask import Blueprint, jsonify, request, current_app
 from flask_login import login_required, current_user
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 import json
 from sqlalchemy import desc, asc, func
@@ -30,7 +30,7 @@ def health_check():
     return jsonify({
         'status': 'ok',
         'message': 'GameBargain API is running',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'version': '1.0.0'
     })
 
@@ -530,7 +530,7 @@ def stats():
         active_sales = db.session.query(Price).filter(Price.is_on_sale == True).count()
         
         # 今日の通知送信数
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         notifications_sent_today = db.session.query(Notification).filter(
             Notification.sent_at >= today,
             Notification.is_sent == True

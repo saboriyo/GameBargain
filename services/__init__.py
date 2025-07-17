@@ -7,7 +7,7 @@ GameBargain サービス層の初期化モジュール
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 # サービスクラス
 from .game_search_service import GameSearchService
@@ -81,7 +81,7 @@ class BaseService(ABC):
         response = {
             'success': True,
             'message': message,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
         
         if data is not None:

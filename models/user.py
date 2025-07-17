@@ -5,7 +5,7 @@ User Model
 Discord認証とユーザー設定を統合管理します。
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_login import UserMixin
 import json
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
@@ -47,8 +47,20 @@ class User(UserMixin, db.Model):
     preferences = Column(Text)  # JSON文字列として保存
     
     # タイムスタンプ
-    created_at = Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    def __init__(self, discord_id: str, username: str, **kwargs: Any) -> None:
+        """
+        コンストラクタ
+        
+        Args:
+            **kwargs: ユーザー情報のキーワード引数
+        """
+        super().__init__(**kwargs)
+        
+        self.discord_id = discord_id
+        self.username = username
     
     # リレーションシップ（型チェック時のみ型注釈）
     if TYPE_CHECKING:
@@ -119,7 +131,7 @@ class User(UserMixin, db.Model):
         """
         最終ログイン時刻を更新
         """
-        setattr(self, 'last_login_at', datetime.utcnow())
+        setattr(self, 'last_login_at', datetime.now(timezone.utc))
     
     def is_token_expired(self) -> bool:
         """
@@ -131,7 +143,7 @@ class User(UserMixin, db.Model):
         token_expires_at = getattr(self, 'token_expires_at', None)
         if not token_expires_at:
             return True
-        return datetime.utcnow() > token_expires_at
+        return datetime.now(timezone.utc) > token_expires_at
     
     def __repr__(self) -> str:
         """

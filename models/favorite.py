@@ -5,7 +5,7 @@ Favorite Model
 ユーザーのお気に入りゲームと通知設定を管理します。
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, Any, TYPE_CHECKING, Union
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint, Index
@@ -38,8 +38,8 @@ class Favorite(db.Model):
     price_threshold = Column(Numeric(10, 2))  # 通知する価格閾値
     
     # タイムスタンプ
-    created_at = Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     __table_args__ = (
         UniqueConstraint('user_id', 'game_id', name='unique_user_game_favorite'),
@@ -68,7 +68,7 @@ class Favorite(db.Model):
         setattr(self, 'game_id', game_id)
         setattr(self, 'notification_enabled', kwargs.get('notification_enabled', True))
         setattr(self, 'price_threshold', kwargs.get('price_threshold'))
-        setattr(self, 'created_at', kwargs.get('created_at', datetime.utcnow()))
+        setattr(self, 'created_at', kwargs.get('created_at', datetime.now(timezone.utc)))
     
     def set_price_threshold(self, threshold: Optional[Decimal]) -> None:
         """
@@ -173,7 +173,7 @@ class Favorite(db.Model):
         if created is None:
             return False
         
-        threshold_date = datetime.utcnow() - timedelta(days=days)
+        threshold_date = datetime.now(timezone.utc) - timedelta(days=days)
         return bool(created > threshold_date)
     
     def get_formatted_threshold(self) -> str:
@@ -253,5 +253,5 @@ class Favorite(db.Model):
             game_id=game_id,
             price_threshold=validated_threshold,
             notification_enabled=notification_enabled,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )

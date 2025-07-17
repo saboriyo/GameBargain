@@ -8,49 +8,9 @@ import click
 from flask import current_app
 from flask.cli import with_appcontext
 
-from tasks.background_tasks import (
-    update_recent_searched_games_task,
-    update_game_prices_task,
-    cleanup_old_prices_task,
-    run_maintenance_tasks
-)
 from services.game_search_service import GameSearchService
+from repositories.game_repository import GameRepository
 
-
-@click.command()
-@with_appcontext
-def update_recent_games():
-    """最近検索されたゲームを更新"""
-    click.echo('最近検索されたゲーム更新開始...')
-    update_recent_searched_games_task()
-    click.echo('最近検索されたゲーム更新完了!')
-
-
-@click.command()
-@with_appcontext
-def update_prices():
-    """ゲーム価格を更新"""
-    click.echo('価格更新開始...')
-    update_game_prices_task()
-    click.echo('価格更新完了!')
-
-
-@click.command()
-@with_appcontext
-def cleanup_prices():
-    """古い価格データをクリーンアップ"""
-    click.echo('価格データクリーンアップ開始...')
-    cleanup_old_prices_task()
-    click.echo('価格データクリーンアップ完了!')
-
-
-@click.command()
-@with_appcontext
-def maintenance():
-    """全メンテナンスタスクを実行"""
-    click.echo('メンテナンスタスク開始...')
-    run_maintenance_tasks()
-    click.echo('メンテナンスタスク完了!')
 
 
 @click.command()
@@ -200,15 +160,14 @@ def search_steam(query, limit, save_to_db):
             click.echo('検索結果をデータベースに保存中...')
             from services.game_search_service import GameSearchService
             search_service = GameSearchService()
+            game_repository = GameRepository()
             
-            saved_count = 0
-            for game in games:
-                saved_game = search_service._save_single_steam_game(game)
-                if saved_game:
-                    saved_count += 1
+            
+            saved_game = game_repository.save_steam_games_from_api(games)
+
             
             search_service.game_repository.commit()
-            click.echo(f'{saved_count}件のゲームをデータベースに保存しました。')
+            click.echo(f'{len(saved_game)}件のゲームをデータベースに保存しました。')
         
     except Exception as e:
         click.echo(f'エラーが発生しました: {e}', err=True)
@@ -356,7 +315,7 @@ def recent_games_steam(limit):
     try:
         from services.steam_service import SteamAPIService
         steam_service = SteamAPIService()
-        games = steam_service.get_popular_games(limit)  # Steam APIでは人気ゲーム=最近のゲーム
+        games = steam_service.get_recent_games(limit)  # Steam APIでは人気ゲーム=最近のゲーム
         
         if not games:
             click.echo('最近追加されたゲームがありません。')
@@ -647,12 +606,6 @@ def db_init():
 
 def register_commands(app):
     """CLIコマンドを登録"""
-    # バックグラウンドタスク
-    app.cli.add_command(update_recent_games)
-    app.cli.add_command(update_prices)
-    app.cli.add_command(cleanup_prices)
-    app.cli.add_command(maintenance)
-    
     # ゲーム検索 - 統合版（自動切り替え）
     app.cli.add_command(search_games)
     app.cli.add_command(recent_games)

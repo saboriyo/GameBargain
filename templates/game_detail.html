@@ -92,7 +92,7 @@
                         {% if game.genres %}
                         <div class="col-sm-6">
                             <strong>ジャンル:</strong>
-                            {% for genre in game.genres.split(',') %}
+                            {% for genre in game.genres %}
                             <span class="badge bg-secondary me-1">{{ genre.strip() }}</span>
                             {% endfor %}
                         </div>
@@ -101,7 +101,7 @@
                         {% if game.platforms %}
                         <div class="col-12">
                             <strong>プラットフォーム:</strong>
-                            {% for platform in game.platforms.split(',') %}
+                            {% for platform in game.platforms %}
                             <span class="badge bg-info me-1">{{ platform.strip() }}</span>
                             {% endfor %}
                         </div>

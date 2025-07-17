@@ -6,7 +6,7 @@ Main Routes
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
-from flask_login import login_required, current_user
+from flask_login import login_required, current_user  # type: ignore
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
@@ -248,6 +248,16 @@ def game_detail(game_id: int):
             game_id=game_id
         ).order_by(Price.created_at).limit(30).all()
         
+        # 最新の価格情報を取得
+        prices = db.session.query(Price).filter_by(
+            game_id=game_id
+        ).order_by(Price.updated_at.desc()).limit(5).all()
+        
+        # 最安値を特定
+        lowest_price = None
+        if prices:
+            lowest_price = min(prices, key=lambda p: getattr(p, 'sale_price') or getattr(p, 'regular_price', float('inf')))
+        
         # お気に入り状態をチェック（ログイン時のみ）
         is_favorited = False
         if current_user.is_authenticated:
@@ -273,6 +283,8 @@ def game_detail(game_id: int):
         
         return render_template('game_detail.html', 
                              game=game_data,
+                             prices=prices,
+                             lowest_price=lowest_price,
                              price_history=price_history_data,
                              is_favorited=is_favorited,
                              page_title=game.title)
@@ -439,6 +451,7 @@ def _format_game_for_web_template(game_data) -> Dict[str, Any]:
             'publisher': game_data.get('publisher'),
             'release_date': game_data.get('release_date') or '',
             'genres': game_data.get('genres', []),
+            'platforms': game_data.get('platforms', []),
             'image_url': game_data.get('image_url') or 'https://via.placeholder.com/300x400',
             'steam_url': game_data.get('steam_url'),
             'steam_rating': game_data.get('steam_rating'),
@@ -460,7 +473,8 @@ def _format_game_for_web_template(game_data) -> Dict[str, Any]:
         'developer': game_data.developer,
         'publisher': game_data.publisher,
         'release_date': game_data.release_date.strftime('%Y-%m-%d') if game_data.release_date else '',
-        'genres': game_data.genres.split(',') if game_data.genres else [],
+        'genres': game_data.genres.split(',') if isinstance(game_data.genres, str) and game_data.genres else (game_data.genres if isinstance(game_data.genres, list) else []),
+        'platforms': game_data.platforms.split(',') if isinstance(game_data.platforms, str) and game_data.platforms else (game_data.platforms if isinstance(game_data.platforms, list) else []),
         'image_url': game_data.image_url or 'https://via.placeholder.com/300x400',
         'steam_url': game_data.steam_url,
         'steam_rating': game_data.steam_rating,
