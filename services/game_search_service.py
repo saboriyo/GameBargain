@@ -59,8 +59,8 @@ class GameSearchService:
                 steam_games = self._search_from_steam_api(query)
                 
                 if steam_games:
-                    # Steam APIの結果をデータベースに保存
-                    self._save_steam_games(steam_games)
+                    # Steam APIの結果をデータベースに保存（リポジトリ層を使用）
+                    self.game_repository.save_steam_games_from_api(steam_games)
                     
                     # データベースから再検索
                     games, total_count = self.game_repository.search_games(
@@ -104,111 +104,6 @@ class GameSearchService:
         except Exception as e:
             current_app.logger.error(f"Steam API検索エラー: {e}")
             return []
-    
-    def _save_steam_games(self, steam_games: List[Dict[str, Any]]) -> None:
-        """
-        Steam APIの結果をデータベースに保存
-        
-        Args:
-            steam_games: Steam APIからの検索結果
-        """
-        try:
-            for steam_game in steam_games:
-                self._save_single_steam_game(steam_game)
-            
-            self.game_repository.commit()
-            
-        except Exception as e:
-            current_app.logger.error(f"Steam ゲーム保存エラー: {e}")
-            self.game_repository.rollback()
-            raise
-    
-    def _save_single_steam_game(self, steam_game: Dict[str, Any]) -> Optional[GameModel]:
-        """
-        単一のSteam ゲームをデータベースに保存
-        
-        Args:
-            steam_game: Steam APIからのゲーム情報
-            
-        Returns:
-            Optional[GameModel]: 保存されたゲーム（失敗時はNone）
-        """
-        try:
-            steam_appid = steam_game.get('steam_appid')
-            if not steam_appid:
-                return None
-            
-            # 既存チェック
-            existing_game = self.game_repository.get_by_steam_appid(steam_appid)
-            
-            if existing_game:
-                # 既存ゲームの更新
-                price_info = steam_game.get('price_info', {})
-                update_data = {
-                    'title': steam_game.get('title'),
-                    'description': steam_game.get('description'),
-                    'developer': steam_game.get('developer'),
-                    'publisher': steam_game.get('publisher'),
-                    'image_url': steam_game.get('image_url'),
-                    'steam_rating': steam_game.get('steam_rating'),
-                    'metacritic_score': steam_game.get('metacritic_score'),
-                    'updated_at': datetime.utcnow()
-                }
-                
-                # 価格情報の更新
-                if price_info:
-                    update_data.update({
-                        'current_price': price_info.get('current_price'),
-                        'original_price': price_info.get('original_price'),
-                        'discount_percent': price_info.get('discount_percent', 0)
-                    })
-                
-                self.game_repository.update(existing_game, **update_data)
-                return existing_game
-            else:
-                # 新規ゲームの作成
-                genres = steam_game.get('genres', [])
-                genres_str = ','.join(genres) if isinstance(genres, list) else str(genres) if genres else ''
-                
-                # 価格情報の取得
-                price_info = steam_game.get('price_info', {})
-                
-                game = GameModel()
-                game.steam_appid = steam_appid
-                game.title = steam_game.get('title', '')
-                game.normalized_title = self._normalize_title(steam_game.get('title', ''))
-                game.description = steam_game.get('description')
-                game.developer = steam_game.get('developer')
-                game.publisher = steam_game.get('publisher')
-                game.genres = genres_str
-                game.image_url = steam_game.get('image_url')
-                game.steam_rating = steam_game.get('steam_rating')
-                game.metacritic_score = steam_game.get('metacritic_score')
-                game.current_price = price_info.get('current_price')
-                game.original_price = price_info.get('original_price')
-                game.discount_percent = price_info.get('discount_percent', 0)
-                game.is_active = True
-                
-                return self.game_repository.save(game)
-                
-        except Exception as e:
-            current_app.logger.error(f"Steam ゲーム保存エラー (appid: {steam_game.get('steam_appid')}): {e}")
-            return None
-    
-    def _normalize_title(self, title: str) -> str:
-        """
-        タイトルを正規化（検索用）
-        
-        Args:
-            title: 元のタイトル
-            
-        Returns:
-            str: 正規化されたタイトル
-        """
-        import re
-        # 英数字以外を除去し、小文字に変換
-        normalized = re.sub(r'[^\w\s]', '', title.lower())
-        return ' '.join(normalized.split())
     
     def _format_game_for_response(self, game: GameModel) -> Dict[str, Any]:
         """

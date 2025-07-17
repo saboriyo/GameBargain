@@ -14,7 +14,7 @@ from models import db, Game, Price, Favorite, User, Notification
 
 from services.steam_service import SteamAPIService
 from services.game_search_service import GameSearchService
-from services.game_search_service import GameSearchService
+from repositories.game_repository import GameRepository
 
 # ブループリントの作成
 main_bp = Blueprint('main', __name__)
@@ -29,42 +29,30 @@ def index():
         str: レンダリングされたHTMLテンプレート
     """
     try:
+        # GameRepositoryを使用してデータ取得
+        game_repository = GameRepository()
+        
         # データベースから注目ゲームを取得
-        featured_games_query = db.session.query(Game).filter(
-            Game.steam_rating.isnot(None)
-        ).order_by(
-            db.desc(Game.steam_rating),
-            db.desc(Game.updated_at)
-        ).limit(6)
+        featured_games_db = game_repository.get_recent_games(6)
         
-        featured_games_db = featured_games_query.all()
-        
-        # データベースに十分なゲームがない場合、Steam APIから最近検索されたゲームを取得
+        # データベースに十分なゲームがない場合、Steam APIから最近のゲームを取得
         if len(featured_games_db) < 3:
-            current_app.logger.info("データベースにゲームが少ないため、Steam APIから最近検索されたゲームを取得中...")
+            current_app.logger.info("データベースにゲームが少ないため、Steam APIから最近のゲームを取得中...")
             steam_service = SteamAPIService()
-            recent_games = steam_service.get_popular_games(10)
+            recent_games = steam_service.get_recent_games(10)
             
-            # Steam APIの結果をデータベースに保存
-            game_search_service = GameSearchService()
-            for steam_game in recent_games:
-                game_search_service._save_single_steam_game(steam_game)
+            # Steam APIの結果をデータベースに保存（リポジトリ層を使用）
+            if recent_games:
+                game_repository.save_steam_games_from_api(recent_games)
+            
+            current_app.logger.info(f"Steam APIから取得したゲーム数: {len(recent_games)}件")
             
             # 再度データベースから取得
-            featured_games_db = featured_games_query.all()
+            featured_games_db = game_repository.get_recent_games(6)
+            current_app.logger.info(f"最終的な注目ゲーム数: {len(featured_games_db)}件")
         
-        # セール中のゲームを取得
-        sale_games_query = db.session.query(Game).filter(
-            Game.is_active == True,
-            Game.current_price.isnot(None),
-            Game.original_price.isnot(None),
-            Game.current_price < Game.original_price
-        ).order_by(
-            db.desc((Game.original_price - Game.current_price) / Game.original_price),
-            db.desc(Game.updated_at)
-        ).limit(6)
-        
-        sale_games_db = sale_games_query.all()
+        # セール中のゲームを取得（リポジトリ層に追加予定、現在は空のリスト）
+        sale_games_db = []
         
         # レスポンス用に整形
         featured_games = [_format_game_for_web_template(game) for game in featured_games_db]
@@ -449,21 +437,21 @@ def _format_game_for_web_template(game_data) -> Dict[str, Any]:
             'description': game_data.get('description'),
             'developer': game_data.get('developer'),
             'publisher': game_data.get('publisher'),
-            'release_date': game_data.get('release_date'),
+            'release_date': game_data.get('release_date') or '',
             'genres': game_data.get('genres', []),
             'image_url': game_data.get('image_url') or 'https://via.placeholder.com/300x400',
             'steam_url': game_data.get('steam_url'),
             'steam_rating': game_data.get('steam_rating'),
             'metacritic_score': game_data.get('metacritic_score'),
-            'current_price': game_data.get('current_price'),
-            'original_price': game_data.get('original_price'),
+            'current_price': game_data.get('current_price') or 0.0,
+            'original_price': game_data.get('original_price') or 0.0,
             'discount_percent': game_data.get('discount_percent', 0),
             'is_on_sale': game_data.get('discount_percent', 0) > 0,
-            'lowest_price': game_data.get('current_price'),
+            'lowest_price': game_data.get('current_price') or 0.0,
             'lowest_store': 'steam',
             'prices': game_data.get('prices', {})
         }
-    
+
     # Gameモデルオブジェクトの場合
     return {
         'id': game_data.id,
@@ -471,23 +459,23 @@ def _format_game_for_web_template(game_data) -> Dict[str, Any]:
         'description': game_data.description,
         'developer': game_data.developer,
         'publisher': game_data.publisher,
-        'release_date': game_data.release_date.strftime('%Y-%m-%d') if game_data.release_date else None,
+        'release_date': game_data.release_date.strftime('%Y-%m-%d') if game_data.release_date else '',
         'genres': game_data.genres.split(',') if game_data.genres else [],
         'image_url': game_data.image_url or 'https://via.placeholder.com/300x400',
         'steam_url': game_data.steam_url,
         'steam_rating': game_data.steam_rating,
         'metacritic_score': game_data.metacritic_score,
-        'current_price': float(game_data.current_price) if game_data.current_price else None,
-        'original_price': float(game_data.original_price) if game_data.original_price else None,
-        'discount_percent': game_data.discount_percent,
-        'is_on_sale': game_data.discount_percent > 0,
-        'lowest_price': float(game_data.current_price) if game_data.current_price else None,
+        'current_price': float(game_data.current_price) if game_data.current_price else 0.0,
+        'original_price': float(game_data.original_price) if game_data.original_price else 0.0,
+        'discount_percent': game_data.discount_percent or 0,
+        'is_on_sale': (game_data.discount_percent or 0) > 0,
+        'lowest_price': float(game_data.current_price) if game_data.current_price else 0.0,
         'lowest_store': 'steam',
         'prices': {
             'steam': {
-                'current': float(game_data.current_price) if game_data.current_price else None,
-                'original': float(game_data.original_price) if game_data.original_price else None,
-                'discount': game_data.discount_percent,
+                'current': float(game_data.current_price) if game_data.current_price else 0.0,
+                'original': float(game_data.original_price) if game_data.original_price else 0.0,
+                'discount': game_data.discount_percent or 0,
                 'url': game_data.steam_url
             }
         }

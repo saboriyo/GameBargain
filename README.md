@@ -348,7 +348,7 @@ pytest
 
 ### SQLite（開発・テスト用）
 
-デフォルトでは SQLite を使用します。追加のセットアップは不要です：
+デフォルトでは SQLite を使用します。data/gamebargain.db にデータが保存されます。dataディレクトリを作成し、そこにデータベースファイルを配置します。
 
 ```bash
 # .envファイル（デフォルト設定）
@@ -365,25 +365,11 @@ SQLALCHEMY_DATABASE_URI=sqlite:///data/gamebargain.db
 - ⚠️ 同時接続数に制限あり
 - ⚠️ 本番環境には不向き
 
-### PostgreSQL（本番用）
-
-本格的な開発や本番環境では PostgreSQL を推奨：
+### Migrationについて
+Flask-Migrateを使用してデータベースのマイグレーションを管理します。初期化後は以下のコマンドでマイグレーションを実行できます。
 
 ```bash
-# .envファイル（PostgreSQL設定）
-DATABASE_URL=postgresql://username:password@localhost:5432/gamebargain
-SQLALCHEMY_DATABASE_URI=postgresql://username:password@localhost:5432/gamebargain
-```
-
-**PostgreSQL セットアップ:**
-```bash
-# macOS
-brew install postgresql
-brew services start postgresql
-createdb gamebargain
-
-# Ubuntu/Debian
-sudo apt-get install postgresql
-sudo systemctl start postgresql
-sudo -u postgres createdb gamebargain
+flask db init          # マイグレーションディレクトリの初期化
+flask db migrate
+flask db upgrade       # マイグレーションの適用
 ```

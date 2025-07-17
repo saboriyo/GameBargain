@@ -172,12 +172,12 @@ class SteamAPIService:
             logger.error(f"Steam アプリ詳細取得エラー (appid: {appid}): {e}")
             return None
     
-    def get_popular_games(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_recent_games(self, limit: int = 20) -> List[Dict[str, Any]]:
         """
-        最近検索されたゲーム一覧を取得
+        適当なゲーム一覧を取得（簡易実装）
         
-        Steam APIから動的にゲーム情報を取得します。
-        実際の人気度は取得できないため、アプリリストから一定数を取得して詳細情報を付与します。
+        Steam APIから適当にゲーム情報を取得します。
+        複雑な人気度計算は行わず、シンプルに動作するアプリ一覧から取得します。
         
         Args:
             limit: 取得数制限
@@ -186,7 +186,7 @@ class SteamAPIService:
             List[Dict]: ゲーム一覧
         """
         try:
-            logger.info(f"Steam API から最近検索されたゲーム {limit} 件を取得中...")
+            logger.info(f"Steam API から適当なゲーム {limit} 件を取得中...")
             
             # アプリ一覧を取得
             app_list = self.get_app_list()
@@ -194,66 +194,59 @@ class SteamAPIService:
                 logger.warning("Steam アプリ一覧の取得に失敗しました")
                 return []
             
-            # ゲームっぽい名前のアプリを優先的に選択
-            # （AppIDが大きいものは比較的新しいゲーム）
-            filtered_apps = []
+            # 明らかにゲームではないものを除外
+            game_apps = []
             for app in app_list:
                 name = app.get('name', '').lower()
                 # DLC、サウンドトラック、ツールなどを除外
                 if any(keyword in name for keyword in [
                     'dlc', 'soundtrack', 'demo', 'beta', 'test', 
-                    'dedicated server', 'tool', 'benchmark'
+                    'dedicated server', 'tool', 'benchmark', 'trailer'
                 ]):
                     continue
-                filtered_apps.append(app)
+                # 短すぎる名前も除外
+                if len(name) < 3:
+                    continue
+                game_apps.append(app)
             
-            # AppIDの大きい順（新しい順）でソートして上位を取得
-            sorted_apps = sorted(filtered_apps, key=lambda x: x.get('appid', 0), reverse=True)
+            # 適当に選択（AppIDが大きいものから順番に）
+            selected_apps = sorted(game_apps, key=lambda x: x.get('appid', 0), reverse=True)[:limit * 2]
             
             recent_games: List[Dict[str, Any]] = []
-            checked_count = 0
-            max_check = limit * 3  # 制限の3倍まで詳細をチェック
             
-            for app in sorted_apps:
+            for app in selected_apps:
                 if len(recent_games) >= limit:
                     break
-                if checked_count >= max_check:
-                    break
                 
-                checked_count += 1
-                detail = self.get_app_details(app['appid'])
+                # 詳細情報の取得をスキップして、基本情報のみでゲームオブジェクトを作成
+                basic_game = {
+                    'steam_appid': app['appid'],
+                    'title': app.get('name'),
+                    'description': f"Steam ID: {app['appid']} のゲーム",
+                    'developer': '不明',
+                    'publisher': '不明', 
+                    'release_date': None,
+                    'genres': [],
+                    'image_url': f"https://cdn.akamai.steamstatic.com/steam/apps/{app['appid']}/header.jpg",
+                    'steam_url': f"https://store.steampowered.com/app/{app['appid']}/",
+                    'price_info': {
+                        'is_free': False,
+                        'current_price': None,
+                        'original_price': None,
+                        'discount_percent': 0,
+                        'formatted_price': '価格情報なし'
+                    },
+                    'metacritic_score': None,
+                    'steam_rating': None
+                }
                 
-                if detail and detail.get('success'):
-                    game_data = detail.get('data', {})
-                    
-                    # ゲームタイプのみ、かつ基本情報が揃っているもの
-                    if (game_data.get('type') == 'game' and 
-                        game_data.get('name') and 
-                        game_data.get('short_description')):
-                        
-                        recent_games.append({
-                            'steam_appid': app['appid'],
-                            'title': game_data.get('name'),
-                            'description': game_data.get('short_description', ''),
-                            'developer': ', '.join(game_data.get('developers', [])),
-                            'publisher': ', '.join(game_data.get('publishers', [])),
-                            'release_date': self._parse_release_date(game_data.get('release_date', {})),
-                            'genres': [genre['description'] for genre in game_data.get('genres', [])],
-                            'image_url': game_data.get('header_image'),
-                            'steam_url': f"https://store.steampowered.com/app/{app['appid']}/",
-                            'price_info': self._extract_price_info(game_data),
-                            'metacritic_score': game_data.get('metacritic', {}).get('score'),
-                            'steam_rating': self._calculate_steam_rating(game_data)
-                        })
-                
-                # API制限を考慮
-                time.sleep(0.5)
+                recent_games.append(basic_game)
             
-            logger.info(f"最近検索されたゲーム {len(recent_games)} 件を取得しました")
+            logger.info(f"適当なゲーム {len(recent_games)} 件を取得しました")
             return recent_games
             
         except Exception as e:
-            logger.error(f"最近検索されたゲーム取得エラー: {e}")
+            logger.error(f"適当なゲーム取得エラー: {e}")
             return []
     
     def _parse_release_date(self, release_data: Dict) -> Optional[str]:

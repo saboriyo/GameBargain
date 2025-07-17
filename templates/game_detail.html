@@ -138,6 +138,13 @@
                     </div>
                 </div>
                 {% endif %}
+
+                <!-- Steamリンク -->
+                {% if game.steam_url %}
+                <a href="{{ game.steam_url }}" target="_blank" class="btn btn-outline-success">
+                    <i class="bi bi-steam me-2"></i>Steamで見る
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -331,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 価格履歴グラフ
-    const priceHistoryData = {{ price_history | tojson | safe }};
+    const priceHistoryData = JSON.parse('{{ price_history | tojson | safe }}');
     if (priceHistoryData && priceHistoryData.length > 0) {
         const ctx = document.getElementById('priceChart');
         if (ctx) {
