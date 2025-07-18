@@ -127,13 +127,18 @@ class TestingConfig(Config):
     テスト環境設定
     
     テスト実行時に使用する設定です。
-    インメモリデータベースを使用し、CSRF保護を無効にします。
+    SQLiteテストデータベースを使用し、CSRF保護を無効にします。
     """
     TESTING = True
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    # SQLiteのテスト用データベースファイルを使用
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///test_gamebargain.db'
     WTF_CSRF_ENABLED = False
     CACHE_TYPE = 'null'  # キャッシュを無効化
+    
+    # テスト用の設定
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
 
 
 # 設定選択
