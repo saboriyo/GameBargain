@@ -115,7 +115,7 @@ cp .env.example .env
 nano .env  # または任意のエディタで編集
 
 # 4. データベース初期化（初回のみ）
-flask db-init
+flask db init
 
 # 5. アプリケーション起動
 python app.py
@@ -138,13 +138,14 @@ cp .env.example .env
 nano .env  # または任意のエディタで編集
 
 # 5. データベース初期化（初回のみ）
-flask db-init
+flask db init
 
 # 6. アプリケーション起動
 python app.py
 ```
 
 🎉 **ブラウザで http://localhost:8000 にアクセスして動作確認！**
+
 
 利用可能なMakeコマンド：
 ```bash
@@ -159,6 +160,11 @@ make format            # コード整形
 make docker-up         # Docker環境起動
 make clean             # 一時ファイル削除
 ```
+### トラブルシューティング
+- **依存関係のインストールに失敗**: `pip install -r requirements.txt` を再実行
+- **データベースの初期化に失敗**: `flask db init` を再実行
+
+- `flask db init`が失敗する
 
 ### 📋 手動セットアップ
 
