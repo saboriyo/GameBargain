@@ -134,7 +134,6 @@ make setup-dev-conda
 conda activate gamebargain
 
 # 4. 環境変数の編集（必要に応じてAPI キーなどを設定）
-cp .env.example .env
 nano .env  # または任意のエディタで編集
 
 # 5. データベース初期化（初回のみ）
