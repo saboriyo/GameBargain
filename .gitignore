@@ -142,9 +142,6 @@ Thumbs.db
 logs/
 *.log
 
-# Database
-*.db
-*.sqlite
 
 # Static files
 /static/dist/
