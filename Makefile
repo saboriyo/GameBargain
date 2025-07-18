@@ -1,7 +1,10 @@
 # GameBargain Makefile
 # 開発・デプロイ作業を簡略化するためのMakefile
 
-.PHONY: help install dev test clean docker-build docker-up docker-down lint format
+# デフォルトシェルをbashに設定
+SHELL := /bin/bash
+
+.PHONY: help install dev dev-clean test clean docker-build docker-up docker-down lint format create-db
 
 # デフォルトターゲット
 help:
@@ -11,7 +14,9 @@ help:
 	@echo "  make install-conda  - 依存関係をインストール（conda）"
 	@echo "  make setup-dev      - 開発環境をセットアップ（pip）"
 	@echo "  make setup-dev-conda - 開発環境をセットアップ（conda）"
+	@echo "  make create-db      - SQLite3でデータベーステーブルを作成"
 	@echo "  make dev           - 開発サーバーを起動"
+	@echo "  make dev-clean     - 環境変数をクリアして開発サーバーを起動"
 	@echo "  make test          - テストを実行"
 	@echo "  make lint          - コード品質チェック"
 	@echo "  make format        - コード整形"
@@ -57,10 +62,21 @@ init-db:
 	flask db upgrade
 	@echo "データベース初期化完了!"
 
+# SQLite3でデータベーステーブルを作成
+create-db:
+	@echo "SQLite3でデータベーステーブルを作成中..."
+	@unset DATABASE_URL && unset SQLALCHEMY_DATABASE_URI && python create_db.py
+	@echo "データベーステーブル作成完了!"
+
 # 開発サーバーの起動
 dev:
 	@echo "開発サーバーを起動中..."
 	FLASK_ENV=development FLASK_APP=app.py flask run --host=0.0.0.0 --port=5000
+
+# 環境変数をクリアして開発サーバーを起動
+dev-clean:
+	@echo "環境変数をクリアして開発サーバーを起動中..."
+	@./scripts/dev_clean.sh
 
 # テストの実行
 test:

@@ -25,11 +25,24 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
     # データベース設定
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///data/gamebargain.db'
+    DATABASE_URL_RAW = os.environ.get('DATABASE_URL') or 'sqlite:///gamebargain.db'
+    
+    # SQLiteの場合は絶対パスに変換
+    if DATABASE_URL_RAW.startswith('sqlite:///'):
+        db_path = DATABASE_URL_RAW.replace('sqlite:///', '')
+        if not os.path.isabs(db_path):
+            # プロジェクトルートからの相対パスを絶対パスに変換
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            db_path = os.path.join(project_root, db_path)
+        SQLALCHEMY_DATABASE_URI = f'sqlite:///{db_path}'
+    else:
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL_RAW
+        
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
+        'connect_args': {'check_same_thread': False} if SQLALCHEMY_DATABASE_URI.startswith('sqlite') else {}
     }
     
     # セッション設定

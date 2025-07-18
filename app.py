@@ -73,10 +73,34 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     # エラーハンドラーの登録
     register_error_handlers(app)
     
-    # アプリケーションコンテキスト内でテーブル作成
+    # データベースディレクトリの作成
+    ensure_database_directory(app)
+    
     with app.app_context():
-        db.create_all()
-        app.logger.info("データベーステーブルが作成されました")
+        try:
+            # データベースの初期化をスキップ（make create-dbを使用）
+            database_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+            if database_uri.startswith('sqlite:///'):
+                db_path = database_uri.replace('sqlite:///', '')
+                if not os.path.isabs(db_path):
+                    db_path = os.path.join(app.root_path, db_path)
+                
+                # データベースファイルが存在しない場合は警告
+                if not os.path.exists(db_path):
+                    app.logger.warning(f"データベースファイルが見つかりません: {db_path}")
+                    app.logger.warning("'make create-db' を実行してデータベースを作成してください")
+                else:
+                    app.logger.info(f"データベースファイルが見つかりました: {db_path}")
+                    
+                    # ファイルの権限とアクセス性をチェック
+                    if os.access(db_path, os.R_OK | os.W_OK):
+                        app.logger.info("データベースファイルへの読み書きアクセスが確認できました")
+                    else:
+                        app.logger.error("データベースファイルへのアクセス権限がありません")
+                        
+        except Exception as e:
+            app.logger.error(f"データベース確認エラー: {e}")
+            # アプリケーション起動は継続（データベースなしでも起動可能）
     
     # CLIコマンドの登録
     from cli_commands import register_commands
@@ -107,6 +131,47 @@ def setup_logging(app: Flask) -> None:
         
         app.logger.setLevel(logging.INFO)
         app.logger.info('GameBargain startup')
+
+
+def ensure_database_directory(app: Flask) -> None:
+    """
+    データベースディレクトリの存在確認と作成
+    
+    Args:
+        app: Flaskアプリケーションインスタンス
+    """
+    database_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    
+    # SQLiteデータベースの場合のみ処理
+    if database_uri.startswith('sqlite:///'):
+        # sqlite:/// の後のパスを取得
+        db_path = database_uri.replace('sqlite:///', '')
+        
+        # 絶対パスに変換
+        if not os.path.isabs(db_path):
+            db_path = os.path.join(app.root_path, db_path)
+        
+        # データベースファイルのディレクトリを取得
+        db_dir = os.path.dirname(db_path)
+        
+        # ディレクトリが存在しない場合は作成（空文字の場合も考慮）
+        if db_dir and not os.path.exists(db_dir):
+            try:
+                os.makedirs(db_dir, exist_ok=True)
+                app.logger.info(f"データベースディレクトリを作成しました: {db_dir}")
+            except Exception as e:
+                app.logger.error(f"データベースディレクトリ作成エラー: {e}")
+                raise
+        
+        app.logger.info(f"データベースパス: {db_path}")
+        app.logger.info(f"設定URI: {database_uri}")
+        app.logger.info(f"ディレクトリ: {db_dir}")
+        
+        # ディレクトリが存在するか最終確認
+        if db_dir and os.path.exists(db_dir):
+            app.logger.info(f"データベースディレクトリが存在します: {db_dir}")
+        elif not db_dir:
+            app.logger.info("データベースファイルはカレントディレクトリに作成されます")
 
 
 def register_models(app: Flask) -> None:

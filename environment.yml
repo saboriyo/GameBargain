@@ -3,11 +3,12 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.11
+  - python=3.12.4
   - flask
   - sqlalchemy
-  - redis-py
+  - redis
   - requests
+  - urllib3
   - numpy
   - pandas
   - beautifulsoup4
