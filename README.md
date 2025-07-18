@@ -114,7 +114,10 @@ make setup-dev
 cp .env.example .env
 nano .env  # または任意のエディタで編集
 
-# 4. アプリケーション起動（SQLiteで自動初期化）
+# 4. データベース初期化（初回のみ）
+flask db-init
+
+# 5. アプリケーション起動
 python app.py
 ```
 
@@ -134,7 +137,10 @@ conda activate gamebargain
 cp .env.example .env
 nano .env  # または任意のエディタで編集
 
-# 5. アプリケーション起動（SQLiteで自動初期化）
+# 5. データベース初期化（初回のみ）
+flask db-init
+
+# 6. アプリケーション起動
 python app.py
 ```
 
@@ -145,7 +151,7 @@ python app.py
 make help               # 利用可能なコマンド一覧を表示
 make setup-dev          # 開発環境セットアップ（pip）
 make setup-dev-conda    # 開発環境セットアップ（conda）
-make init-db            # データベース初期化
+make init-db            # データベース初期化（flask db-init実行）
 make dev               # 開発サーバー起動
 make test              # テスト実行
 make lint              # コード品質チェック
@@ -189,7 +195,12 @@ cp .env.example .env
 # 必要に応じて.envファイルを編集
 ```
 
-5. **アプリケーションの起動**
+5. **データベースの初期化（初回のみ）**
+```bash
+flask db-init
+```
+
+6. **アプリケーションの起動**
 ```bash
 python app.py
 ```
@@ -271,7 +282,10 @@ pip install -r requirements.txt
 # 3. 環境変数設定
 cp .env.example .env
 
-# 4. 起動
+# 4. データベース初期化（初回のみ）
+flask db-init
+
+# 5. 起動
 python app.py
 ```
 
@@ -365,11 +379,38 @@ SQLALCHEMY_DATABASE_URI=sqlite:///data/gamebargain.db
 - ⚠️ 同時接続数に制限あり
 - ⚠️ 本番環境には不向き
 
+**注意事項:**
+- 初回起動前に `flask db-init` でデータベースの初期化が必要です
+- `data` ディレクトリが存在しない場合は自動的に作成されます
+
 ### Migrationについて
-Flask-Migrateを使用してデータベースのマイグレーションを管理します。初期化後は以下のコマンドでマイグレーションを実行できます。
+Flask-Migrateを使用してデータベースのマイグレーションを管理します。
+
+#### 初回セットアップ時のデータベース初期化
+
+**SQLite使用時（開発環境）:**
+```bash
+# データベースの初期化（テーブル作成）
+flask db-init
+```
+
+**PostgreSQL使用時（本番環境）:**
+```bash
+# マイグレーションディレクトリの初期化（初回のみ）
+flask db init
+
+# マイグレーションファイルの生成
+flask db migrate -m "Initial migration"
+
+# マイグレーションの適用
+flask db upgrade
+```
+
+#### 開発中のマイグレーション
+モデルを変更した場合は以下のコマンドでマイグレーションを実行できます：
 
 ```bash
-flask db init          # マイグレーションディレクトリの初期化
-flask db migrate
-flask db upgrade       # マイグレーションの適用
+flask db migrate -m "Add new field"  # マイグレーションファイル生成
+flask db upgrade                     # マイグレーションの適用
+flask db downgrade                   # マイグレーションの取り消し
 ```

@@ -10,13 +10,9 @@ from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlencode
 import requests
 from typing import Optional, Dict, Any
-from os import getenv
 
 # ブループリントの作成
 auth_bp = Blueprint('auth', __name__)
-
-# グローバル変数として定義
-REDIRECT_URI = getenv('DISCORD_REDIRECT_URI', 'http://localhost:8000/auth/discord/callback')
 
 
 @auth_bp.route('/login')
@@ -60,8 +56,13 @@ def discord_login():
     """
     # Discord OAuth2設定の確認
     client_id = current_app.config.get('DISCORD_CLIENT_ID')
+    redirect_uri = current_app.config.get('DISCORD_REDIRECT_URI')
     
-    if not client_id or not REDIRECT_URI:
+    # デバッグ情報を出力
+    current_app.logger.info(f"REDIRECT_URI from config: {redirect_uri}")
+    current_app.logger.info(f"CLIENT_ID: {client_id}")
+    
+    if not client_id or not redirect_uri:
         flash('Discord認証の設定が完了していません。管理者にお問い合わせください。', 'error')
         return redirect(url_for('auth.login'))
     
@@ -69,7 +70,7 @@ def discord_login():
     discord_oauth_url = 'https://discord.com/api/oauth2/authorize'
     params = {
         'client_id': client_id,
-        'redirect_uri': REDIRECT_URI,
+        'redirect_uri': redirect_uri,
         'response_type': 'code',
         'scope': 'identify email connections guilds guilds.join',
         'state': 'gamebargain_auth'  # CSRF保護
@@ -163,7 +164,7 @@ def get_discord_token(code: str) -> Optional[Dict[str, Any]]:
         'client_secret': current_app.config.get('DISCORD_CLIENT_SECRET'),
         'grant_type': 'authorization_code',
         'code': code,
-        'redirect_uri': REDIRECT_URI,
+        'redirect_uri': current_app.config.get('DISCORD_REDIRECT_URI'),
     }
     
     headers = {
