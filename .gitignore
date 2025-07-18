@@ -149,3 +149,7 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+
+# database files
+*.db

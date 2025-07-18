@@ -93,14 +93,15 @@ def create_database():
         CREATE TABLE IF NOT EXISTS prices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_id INTEGER NOT NULL,
-            platform VARCHAR(50) NOT NULL,
-            price REAL NOT NULL,
-            original_price REAL,
-            discount_percentage REAL,
+            store VARCHAR(20) NOT NULL,
+            regular_price DECIMAL(10, 2),
+            sale_price DECIMAL(10, 2),
+            discount_rate INTEGER DEFAULT 0,
             currency VARCHAR(3) DEFAULT 'JPY',
-            store_url TEXT,
             is_on_sale BOOLEAN DEFAULT FALSE,
-            sale_ends_at DATETIME,
+            sale_start_date DATETIME,
+            sale_end_date DATETIME,
+            store_url VARCHAR(500),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
@@ -147,7 +148,8 @@ def create_database():
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_games_normalized_title ON games (normalized_title)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_games_steam_appid ON games (steam_appid)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_games_epic_game_id ON games (epic_game_id)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_prices_game_platform ON prices (game_id, platform)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_prices_game_store ON prices (game_id, store)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_prices_is_on_sale ON prices (is_on_sale)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_favorites_user_game ON user_favorites (user_id, game_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_favorites_notification_enabled ON user_favorites (notification_enabled)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id)')
