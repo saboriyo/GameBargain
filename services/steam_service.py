@@ -60,16 +60,28 @@ class SteamAPIService:
             
             data = response.json()
             app_list = data.get('applist', {}).get('apps', [])
-            
-            # ゲームのみをフィルタリング（名前があるもの）
-            games = [app for app in app_list if app.get('name')]
+
+            # ゲームのみをフィルタリング (DLCやツールを除外 )
+            game_apps = []
+            for app in app_list:
+                name = app.get('name', '').lower()
+                if not name or len(name) < 3:
+                    continue
+                # DLC、サウンドトラック、ツールなどを除外
+                if any(keyword in name for keyword in [
+                    'dlc', 'soundtrack', 'demo', 'beta', 'test', 
+                    'dedicated server', 'tool', 'benchmark', 'trailer', 
+                    'mod', 'asset', 'pack', 'bundle', 'collection', '追加'
+                ]):
+                    continue
+                game_apps.append(app)
             
             # キャッシュ更新
-            self._app_list_cache = games
+            self._app_list_cache = app_list
             self._cache_timestamp = datetime.now()
             
-            logger.info(f"Steam アプリケーション {len(games)} 件を取得しました")
-            return games
+            logger.info(f"Steam アプリケーション {len(app_list)} 件を取得しました")
+            return app_list
             
         except Exception as e:
             logger.error(f"Steam API アプリ一覧取得エラー: {e}")
@@ -151,6 +163,43 @@ class SteamAPIService:
             
         Returns:
             Optional[Dict]: アプリ詳細情報
+            success: True/False
+            data: 詳細情報辞書
+                name: アプリ名
+                steam_appid: アプリID
+                required_age: 年齢制限
+                is_free: 無料かどうか
+                detailed_description: 詳細説明
+                short_description: 簡易説明
+                fullgame: appid,name
+                supported_languages: 対応言語
+                header_image: ヘッダー画像URL
+                capsule_image: カプセル画像URL
+                capsule_imagev5: カプセル画像URL (新)
+                website: 公式サイトURL
+                pc_requirements: PC要件
+                mac_requirements: Mac要件
+                linux_requirements: Linux要件
+                developers: 開発者リスト
+                price_overview: 価格情報
+                    currency,initial,final,discount_percent,initial_formatted,final_formatted
+                packages: パッケージ情報
+                package_groups: パッケージグループ情報
+                screenshots: スクリーンショットリスト
+                path_full: 完全なパス
+                release_date: リリース日
+                support_info: サポート情報
+                background: 背景画像URL
+                background_raw: 背景画像URL (新)
+                content_descriptors: コンテンツ記述子
+                ratings: 制限のやつ
+                    dejus:
+                        rating_generated
+                        rating: 14,lなど
+                        required_age: 年齢制限
+                        banned: 
+                steam_germany
+
         """
         try:
             url = f"{self.STORE_BASE_URL}/appdetails"
@@ -174,10 +223,10 @@ class SteamAPIService:
     
     def get_recent_games(self, limit: int = 20) -> List[Dict[str, Any]]:
         """
-        適当なゲーム一覧を取得（簡易実装）
-        
+        適当なゲーム一覧を取得（詳細情報を含む）
+
         Steam APIから適当にゲーム情報を取得します。
-        複雑な人気度計算は行わず、シンプルに動作するアプリ一覧から取得します。
+        価格が0より大きいゲームのみを取得します。
         
         Args:
             limit: 取得数制限
@@ -187,64 +236,54 @@ class SteamAPIService:
         """
         try:
             logger.info(f"Steam API から適当なゲーム {limit} 件を取得中...")
-            
+
             # アプリ一覧を取得
-            app_list = self.get_app_list()
-            if not app_list:
+            game_apps = self.get_app_list()
+            if not game_apps:
                 logger.warning("Steam アプリ一覧の取得に失敗しました")
                 return []
             
-            # 明らかにゲームではないものを除外
-            game_apps = []
-            for app in app_list:
-                name = app.get('name', '').lower()
-                # DLC、サウンドトラック、ツールなどを除外
-                if any(keyword in name for keyword in [
-                    'dlc', 'soundtrack', 'demo', 'beta', 'test', 
-                    'dedicated server', 'tool', 'benchmark', 'trailer'
-                ]):
-                    continue
-                # 短すぎる名前も除外
-                if len(name) < 3:
-                    continue
-                game_apps.append(app)
             
+
             # 適当に選択（AppIDが大きいものから順番に）
             selected_apps = sorted(game_apps, key=lambda x: x.get('appid', 0), reverse=True)[:limit * 2]
-            
+
             recent_games: List[Dict[str, Any]] = []
-            
+
             for app in selected_apps:
                 if len(recent_games) >= limit:
                     break
-                
-                # 詳細情報の取得をスキップして、基本情報のみでゲームオブジェクトを作成
-                basic_game = {
-                    'steam_appid': app['appid'],
-                    'title': app.get('name'),
-                    'description': f"Steam ID: {app['appid']} のゲーム",
-                    'developer': '不明',
-                    'publisher': '不明', 
-                    'release_date': None,
-                    'genres': [],
-                    'image_url': f"https://cdn.akamai.steamstatic.com/steam/apps/{app['appid']}/header.jpg",
-                    'steam_url': f"https://store.steampowered.com/app/{app['appid']}/",
-                    'price_info': {
-                        'is_free': False,
-                        'current_price': None,
-                        'original_price': None,
-                        'discount_percent': 0,
-                        'formatted_price': '価格情報なし'
-                    },
-                    'metacritic_score': None,
-                    'steam_rating': None
-                }
-                
-                recent_games.append(basic_game)
-            
+
+                # 詳細情報を取得
+                detail = self.get_app_details(app['appid'])
+                if detail and detail.get('success'):
+                    game_data = detail.get('data', {})
+
+                    # ゲームタイプのみ（DLC等を除外）
+                    if game_data.get('type') == 'game':
+                            detailed_game = {
+                                'steam_appid': app['appid'],
+                                'title': game_data.get('name', app['name']),
+                                'description': game_data.get('short_description', ''),
+                                'developer': ', '.join(game_data.get('developers', [])),
+                                'publisher': ', '.join(game_data.get('publishers', [])),
+                                'release_date': self._parse_release_date(game_data.get('release_date', {})),
+                                'genres': [genre['description'] for genre in game_data.get('genres', [])],
+                                'image_url': game_data.get('header_image'),
+                                'steam_url': f"https://store.steampowered.com/app/{app['appid']}/",
+                                'price_info': self._extract_price_info(game_data),
+                                'metacritic_score': game_data.get('metacritic', {}).get('score'),
+                                'steam_rating': self._calculate_steam_rating(game_data)
+                            }
+
+                            recent_games.append(detailed_game)
+
+                # API制限を考慮して短い間隔を置く
+                time.sleep(0.2)
+
             logger.info(f"適当なゲーム {len(recent_games)} 件を取得しました")
             return recent_games
-            
+
         except Exception as e:
             logger.error(f"適当なゲーム取得エラー: {e}")
             return []
