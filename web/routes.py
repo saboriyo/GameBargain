@@ -5,9 +5,9 @@ Main Routes
 トップページ、ゲーム検索、詳細表示などの主要機能を提供します。
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session
 from flask_login import login_required, current_user  # type: ignore
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
 from models import db, Game, Price, Favorite, User, Notification
@@ -243,22 +243,45 @@ def game_detail(game_id: int):
             flash('指定されたゲームが見つかりません。', 'error')
             return redirect(url_for('main.index'))
         
-        # 価格履歴を取得
-        price_history = db.session.query(Price).filter_by(
-            game_id=game_id
-        ).order_by(Price.created_at).limit(30).all()
-        
-        # 最新の価格情報を取得
-        prices = db.session.query(Price).filter_by(
-            game_id=game_id
-        ).order_by(Price.updated_at.desc()).limit(5).all()
-        
+        # ゲーム情報を整形（これにより価格情報も含まれる）
+        game_data = _format_game_for_web_template(game)
+        current_app.logger.debug(f"ゲーム情報: id={game_data['id']}, "
+                               f"title={game_data['title']}, "
+                               f"current_price={game_data.get('current_price')}")
+
+        # game_dataから価格情報を整形
+        formatted_prices = []
+        if game_data['prices']:
+            for store, price_info in game_data['prices'].items():
+                formatted_price = {
+                    'store': store,
+                    'price': price_info['current'],
+                    'original_price': price_info['original'],
+                    'discount_percent': price_info['discount'],
+                    'store_url': price_info.get('url'),
+                    'updated_at': datetime.now()  # または適切な更新日時
+                }
+                formatted_prices.append(formatted_price)
+                current_app.logger.debug(f"整形後の価格情報: {formatted_price}")
+
         # 最安値を特定
         lowest_price = None
-        if prices:
-            lowest_price = min(prices, key=lambda p: getattr(p, 'sale_price') or getattr(p, 'regular_price', float('inf')))
-        
-        # お気に入り状態をチェック（ログイン時のみ）
+        if formatted_prices:
+            lowest_price = min(formatted_prices, key=lambda p: p['price'])
+            current_app.logger.debug(f"最安値: store={lowest_price['store']}, "
+                                   f"price={lowest_price['price']}, "
+                                   f"discount={lowest_price['discount_percent']}%")
+
+        # 最安値情報をゲームデータに追加
+        if lowest_price:
+            game_data['lowest_price'] = lowest_price
+            current_app.logger.debug("ゲームデータに最安値情報を追加済み")
+
+        current_app.logger.info(f"ゲーム詳細表示: game_id={game_id}, "
+                               f"title={game.title}, "
+                               f"価格数={len(formatted_prices)}")
+
+        # お気に入り状態をチェック
         is_favorited = False
         if current_user.is_authenticated:
             favorite = db.session.query(Favorite).filter_by(
@@ -266,31 +289,17 @@ def game_detail(game_id: int):
                 game_id=game_id
             ).first()
             is_favorited = favorite is not None
-        
-        # レスポンス用に整形
-        game_data = _format_game_for_web_template(game)
-        
-        # 価格履歴を整形
-        price_history_data = [
-            {
-                'date': getattr(price, 'created_at', datetime.now()).strftime('%Y-%m-%d'),
-                'price': float(getattr(price, 'sale_price') or getattr(price, 'regular_price', 0))
-            }
-            for price in price_history
-        ]
-        
-        current_app.logger.info(f"ゲーム詳細表示: game_id={game_id}, title={game.title}")
-        
+
         return render_template('game_detail.html', 
                              game=game_data,
-                             prices=prices,
+                             prices=formatted_prices,
                              lowest_price=lowest_price,
-                             price_history=price_history_data,
                              is_favorited=is_favorited,
                              page_title=game.title)
-                             
+
     except Exception as e:
         current_app.logger.error(f"ゲーム詳細取得エラー: {e}")
+        current_app.logger.exception("詳細なエラー情報:")
         flash('ゲーム情報の取得中にエラーが発生しました。', 'error')
         return redirect(url_for('main.index'))
 
