@@ -171,36 +171,36 @@
                     {% for price in prices %}
                     <tr class="{{ 'table-success' if price == lowest_price else '' }}">
                         <td>
-                            <span class="store-badge store-{{ price['store'] }}">
-                                {{ price['store']|upper }}
+                            <span class="store-badge store-{{ price.store }}">
+                                {{ price.store|upper }}
                             </span>
                             {% if price == lowest_price %}
                             <i class="bi bi-trophy-fill text-warning ms-2" title="最安値"></i>
                             {% endif %}
                         </td>
                         <td>
-                            <span class="fs-5 fw-bold text-success">¥{{ "{:,}".format(price['price']|int) }}</span>
-                            {% if price['original_price'] and price['price'] < price['original_price'] %}
+                            <span class="fs-5 fw-bold">¥{{ "{:,}".format(price.price|int) }}</span>
+                            {% if price.original_price and price.original_price > price.price %}
                             <small class="text-muted text-decoration-line-through d-block">
-                                ¥{{ "{:,}".format(price['original_price']|int) }}
+                                ¥{{ "{:,}".format(price.original_price|int) }}
                             </small>
                             {% endif %}
                         </td>
                         <td>
-                            {% if price['discount_percent'] and price['discount_percent'] > 0 %}
-                            <span class="badge bg-danger">{{ price['discount_percent'] }}% OFF</span>
+                            {% if price.discount_percent and price.discount_percent > 0 %}
+                            <span class="badge bg-danger">{{ price.discount_percent }}% OFF</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>
                             <small class="text-muted">
-                                {{ price['updated_at'].strftime('%m/%d %H:%M') }}
+                                {{ price.updated_at.strftime('%m/%d %H:%M') }}
                             </small>
                         </td>
                         <td>
-                            {% if price['store_url'] %}
-                            <a href="{{ price['store_url'] }}" 
+                            {% if price.store_url %}
+                            <a href="{{ price.store_url }}" 
                                target="_blank" 
                                class="btn btn-sm btn-outline-primary"
                                rel="noopener noreferrer">
