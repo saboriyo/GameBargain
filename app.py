@@ -48,6 +48,10 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     
     # 設定の読み込み
     config_name = config_name or os.environ.get('FLASK_ENV', 'development')
+    
+    # セッション設定
+    app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30分
+    app.config['SESSION_TYPE'] = 'filesystem'
     config_name = str(config_name)
     app.config.from_object(config[config_name])
     
