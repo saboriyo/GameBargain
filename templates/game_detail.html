@@ -116,13 +116,13 @@
                     <div>
                         <h5 class="alert-heading mb-1">現在の最安値</h5>
                         <div class="d-flex align-items-center">
-                            <span class="fs-3 fw-bold text-success me-3">¥{{ "{:,}".format(lowest_price['price']|int) }}</span>
-                            <span class="store-badge store-{{ lowest_price['store'] }}">{{ lowest_price['store']|upper }}</span>
-                            {% if lowest_price['discount_percent'] and lowest_price['discount_percent'] > 0 %}
-                            <span class="badge bg-danger ms-2">{{ lowest_price['discount_percent'] }}% OFF</span>
+                            <span class="fs-3 fw-bold text-success me-3">¥{{ "{:,}".format(lowest_price.price|int) }}</span>
+                            <span class="store-badge store-{{ lowest_price.store }}">{{ lowest_price.store|upper }}</span>
+                            {% if lowest_price.discount_percent and lowest_price.discount_percent > 0 %}
+                            <span class="badge bg-danger ms-2">{{ lowest_price.discount_percent }}% OFF</span>
                             {% endif %}
                         </div>
-                        <small class="text-muted">更新日時: {{ lowest_price['updated_at'].strftime('%Y年%m月%d日 %H:%M') }}</small>
+                        <small class="text-muted">更新日時: {{ lowest_price.updated_at.strftime('%Y年%m月%d日 %H:%M') }}</small>
                     </div>
                 </div>
                 {% endif %}
@@ -185,7 +185,6 @@
                                 ¥{{ "{:,}".format(price['original_price']|int) }}
                             </small>
                             {% endif %}
-                            
                         </td>
                         <td>
                             {% if price['discount_percent'] and price['discount_percent'] > 0 %}

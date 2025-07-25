@@ -5,9 +5,9 @@ Main Routes
 トップページ、ゲーム検索、詳細表示などの主要機能を提供します。
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user  # type: ignore
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Any, Optional
 
 from models import db, Game, Price, Favorite, User, Notification
@@ -237,62 +237,32 @@ def game_detail(game_id: int):
         str: レンダリングされたHTMLテンプレート
     """
     try:
-        # セッションキーの設定
-        session_key = f'game_{game_id}_prices'
-        cache_key = f'game_{game_id}_cache_time'
+        # データベースからゲーム情報を取得
+        game = db.session.get(Game, game_id)
+        if not game:
+            flash('指定されたゲームが見つかりません。', 'error')
+            return redirect(url_for('main.index'))
         
-        # キャッシュの有効期限をチェック（30分）
-        cache_time = session.get(cache_key)
-        current_time = datetime.now()
-        
-        if cache_time and datetime.fromisoformat(cache_time) + timedelta(minutes=30) > current_time:
-            # キャッシュが有効な場合、セッションから価格情報を取得
-            formatted_prices = session.get(session_key)
-            if formatted_prices:
-                current_app.logger.debug("キャッシュから価格情報を取得")
-                game = db.session.get(Game, game_id)
-                if not game:
-                    flash('指定されたゲームが見つかりません。', 'error')
-                    return redirect(url_for('main.index'))
-                game_data = _format_game_for_web_template(game)
-            else:
-                formatted_prices = []
-        else:
-            # データベースからゲーム情報を取得
-            game = db.session.get(Game, game_id)
-            if not game:
-                flash('指定されたゲームが見つかりません。', 'error')
-                return redirect(url_for('main.index'))
-            
-            # ゲーム情報を整形
-            game_data = _format_game_for_web_template(game)
-            current_app.logger.debug(f"ゲーム情報: id={game_data['id']}, "
-                                   f"title={game_data['title']}")
+        # ゲーム情報を整形（これにより価格情報も含まれる）
+        game_data = _format_game_for_web_template(game)
+        current_app.logger.debug(f"ゲーム情報: id={game_data['id']}, "
+                               f"title={game_data['title']}, "
+                               f"current_price={game_data.get('current_price')}")
 
-            # 価格情報を直接データベースから取得
-            prices_db = db.session.query(Price).filter_by(
-                game_id=game_id
-            ).order_by(Price.updated_at.desc()).all()
-
-            # 価格情報を整形
-            formatted_prices = []
-            for price in prices_db:
-                if price.is_price_valid():  # 24時間以内の価格のみ使用
-                    formatted_price = {
-                        'store': price.store,
-                        'price': float(price.sale_price if price.sale_price else price.regular_price),
-                        'original_price': float(price.regular_price) if price.regular_price else None,
-                        'discount_percent': price.discount_rate,
-                        'store_url': price.store_url or f"https://store.steampowered.com/app/{game_id}/",
-                        'updated_at': price.updated_at
-                    }
-                    formatted_prices.append(formatted_price)
-                    current_app.logger.debug(f"整形後の価格情報: {formatted_price}")
-            
-            # セッションに保存
-            session[session_key] = formatted_prices
-            session[cache_key] = current_time.isoformat()
-            current_app.logger.debug("価格情報をセッションに保存")
+        # game_dataから価格情報を整形
+        formatted_prices = []
+        if game_data['prices']:
+            for store, price_info in game_data['prices'].items():
+                formatted_price = {
+                    'store': store,
+                    'price': price_info['current'],
+                    'original_price': price_info['original'],
+                    'discount_percent': price_info['discount'],
+                    'store_url': price_info.get('url'),
+                    'updated_at': datetime.now()  # または適切な更新日時
+                }
+                formatted_prices.append(formatted_price)
+                current_app.logger.debug(f"整形後の価格情報: {formatted_price}")
 
         # 最安値を特定
         lowest_price = None

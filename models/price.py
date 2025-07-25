@@ -5,7 +5,7 @@ Price Model
 現在価格と価格履歴を管理します。
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional, TYPE_CHECKING, Any
 
@@ -47,12 +47,6 @@ class Price(db.Model):
     __table_args__ = (
         Index('idx_prices_game_store', 'game_id', 'store'),
     )
-    
-    def is_price_valid(self) -> bool:
-        """価格情報が有効かどうかを判定します"""
-        now = datetime.now(timezone.utc)
-        # 更新から24時間以内の価格情報のみ有効とする
-        return (now - self.updated_at) < timedelta(hours=24)
     
     # リレーションシップ（型チェック時のみ型注釈）
     if TYPE_CHECKING:
