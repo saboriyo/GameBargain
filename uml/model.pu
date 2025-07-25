@@ -1,0 +1,114 @@
+@startuml
+!theme plain
+
+title GameBargain クラス図 (情報量増加)
+
+package "アプリケーションコア" {
+  class App {
+    + run(): void
+  }
+}
+
+package "Webインターフェース (web)" {
+  class AuthService {
+    + login(username, password): User
+    + register(username, email, password): User
+  }
+
+  class WebRoutes {
+    + handle_request(path): Response
+  }
+
+  class WebForms {
+    + validate_form(data): boolean
+  }
+}
+
+package "Discord Bot (discord_bot)" {
+  class DiscordBot {
+    + start(): void
+    + on_message(message): void
+  }
+
+  class DiscordCommands {
+    + execute_command(command, args): string
+  }
+}
+
+package "サービス (services)" {
+  class GameService {
+    + search_games(query): List<Game>
+    + compare_prices(game_id): List<Price>
+  }
+
+  class PriceService {
+    + monitor_prices(): void
+    + update_price(game_id, store, price): void
+  }
+
+  class NotificationService {
+    + send_price_alert(user_id, game_id, price): void
+  }
+}
+
+package "データモデル (models)" {
+  class User {
+    - id: int
+    - username: string
+    - email: string
+  }
+
+  class Game {
+    - id: int
+    - name: string
+    - platform: string
+  }
+
+  class Price {
+    - id: int
+    - game_id: int
+    - price: float
+    - timestamp: datetime
+  }
+}
+
+' データベース
+database "SQLiteデータベース" as DB {
+  entity "gamebargain.db"
+}
+
+' 関係性
+App ..> WebRoutes
+App ..> DiscordBot
+App ..> PriceService
+
+WebRoutes ..> GameService
+WebRoutes ..> AuthService
+WebRoutes ..> WebForms
+
+DiscordBot ..> DiscordCommands
+DiscordBot ..> GameService
+DiscordBot ..> PriceService
+DiscordBot ..> NotificationService
+
+DiscordCommands ..> GameService
+DiscordCommands ..> PriceService
+DiscordCommands ..> NotificationService
+
+GameService ..> Game
+GameService ..> Price
+
+PriceService ..> Game
+PriceService ..> Price
+
+NotificationService ..> User
+NotificationService ..> Game
+NotificationService ..> Price
+
+AuthService --> User
+
+User -- DB
+Game -- DB
+Price -- DB
+
+@enduml
