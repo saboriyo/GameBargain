@@ -183,66 +183,70 @@
         <div class="row">
             {% for game in games %}
             <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
-                <div class="card h-100 game-card">
-                    <div class="position-relative">
-                        <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
-                             class="card-img-top game-image" 
-                             alt="{{ game.title }}"
-                             loading="lazy">
-                        
-                        <!-- 割引バッジ -->
-                        {% if game.lowest_price and game.lowest_price.discount_percent and game.lowest_price.discount_percent > 0 %}
-                        <div class="discount-badge">
-                            -{{ game.lowest_price.discount_percent }}%
-                        </div>
-                        {% endif %}
-
-                        <!-- お気に入りボタン -->
-                        {% if current_user.is_authenticated %}
-                        <button class="btn btn-sm btn-outline-light favorite-btn position-absolute top-0 end-0 m-2" 
-                                data-game-id="{{ game.id }}"
-                                data-bs-toggle="tooltip" 
-                                title="お気に入りに追加">
-                            <i class="bi bi-heart"></i>
-                        </button>
-                        {% endif %}
-                    </div>
-
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">{{ game.title }}</h5>
-                        
-                        {% if game.lowest_price %}
-                        <div class="price-info mb-2">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <span class="fs-5 fw-bold text-success">¥{{ "{:,}".format(game.lowest_price.price|int) }}</span>
-                                <span class="store-badge store-{{ game.lowest_price.store }}">{{ game.lowest_price.store|upper }}</span>
+                <a href="{{ url_for('main.game_detail', game_id=game.id) }}" class="text-decoration-none">
+                    <div class="card h-100 game-card">
+                        <div class="position-relative">
+                            <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                                 class="card-img-top game-image" 
+                                 alt="{{ game.title }}"
+                                 loading="lazy">
+                            
+                            <!-- 割引バッジ -->
+                            {% if game.lowest_price and game.lowest_price.discount_percent and game.lowest_price.discount_percent > 0 %}
+                            <div class="discount-badge">
+                                -{{ game.lowest_price.discount_percent }}%
                             </div>
-                            {% if game.lowest_price.original_price and game.lowest_price.original_price > game.lowest_price.price %}
-                            <small class="text-muted text-decoration-line-through">
-                                ¥{{ "{:,}".format(game.lowest_price.original_price|int) }}
-                            </small>
                             {% endif %}
                         </div>
-                        {% endif %}
 
-                        {% if game.genres %}
-                        <div class="mb-2">
-                            {% for genre in game.genres.split(',')[:2] %}
-                            <span class="badge bg-secondary me-1">{{ genre.strip() }}</span>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ game.title }}</h5>
+                            
+                            {% if game.lowest_price %}
+                            <div class="price-info mb-2">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="fs-5 fw-bold text-success">¥{{ "{:,}".format(game.lowest_price.price|int) }}</span>
+                                    <span class="store-badge store-{{ game.lowest_price.store }}">{{ game.lowest_price.store|upper }}</span>
+                                </div>
+                                {% if game.lowest_price.original_price and game.lowest_price.original_price > game.lowest_price.price %}
+                                <small class="text-muted text-decoration-line-through">
+                                    ¥{{ "{:,}".format(game.lowest_price.original_price|int) }}
+                                </small>
+                                {% endif %}
+                            </div>
+                            {% endif %}
 
-                        <p class="card-text flex-grow-1">
-                            {{ game.description[:80] }}{% if game.description|length > 80 %}...{% endif %}
-                        </p>
+                            {% if game.genres %}
+                            <div class="mb-2">
+                                {% for genre in game.genres.split(',')[:2] %}
+                                <span class="badge bg-secondary me-1">{{ genre.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
 
-                        <div class="mt-auto">
-                            <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
-                               class="btn btn-primary btn-sm w-100">詳細を見る</a>
+                            <p class="card-text flex-grow-1">
+                                {{ game.description[:80] }}{% if game.description|length > 80 %}...{% endif %}
+                            </p>
+
+                            <div class="mt-auto">
+                                <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
+                                   class="btn btn-primary btn-sm w-100">詳細を見る</a>
+                            </div>
                         </div>
                     </div>
+                </a>
+                
+                <!-- お気に入りボタンはリンクの外に配置 -->
+                {% if current_user.is_authenticated %}
+                <div class="position-absolute top-0 end-0 m-2">
+                    <button class="btn btn-sm btn-outline-light favorite-btn" 
+                            data-game-id="{{ game.id }}"
+                            data-bs-toggle="tooltip" 
+                            title="お気に入りに追加">
+                        <i class="bi bi-heart"></i>
+                    </button>
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -397,17 +401,17 @@
             <div class="row justify-content-center">
                 {% for game in recent_games[:4] %}
                 <div class="col-sm-6 col-md-3 mb-3">
-                    <div class="card">
-                        <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
-                             class="card-img-top" 
-                             alt="{{ game.title }}"
-                             style="height: 150px; object-fit: cover;">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">{{ game.title }}</h6>
-                            <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
-                               class="btn btn-primary btn-sm">詳細を見る</a>
+                    <a href="{{ url_for('main.game_detail', game_id=game.id) }}" class="text-decoration-none">
+                        <div class="card h-100 game-card">
+                            <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                                class="card-img-top" 
+                                alt="{{ game.title }}"
+                                style="height: 150px; object-fit: cover;">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-dark">{{ game.title }}</h6>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 {% endfor %}
             </div>

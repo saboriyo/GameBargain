@@ -51,18 +51,43 @@ body {
 
 /* ゲームカード */
 .game-card {
-    border: none;
-    border-radius: 12px;
-    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.125);
 }
 
-.game-card .card-img-top {
-    height: 200px;
-    object-fit: cover;
+.game-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-.game-card .card-body {
-    padding: 1.5rem;
+/* カードリンクのスタイル */
+a .game-card {
+    color: inherit;
+}
+
+a:hover .game-card {
+    text-decoration: none;
+}
+
+/* カード画像のホバーエフェクト */
+.game-card img {
+    transition: opacity 0.2s ease-in-out;
+}
+
+.game-card:hover img {
+    opacity: 0.9;
+}
+
+/* 割引バッジ */
+.discount-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: #dc3545;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: bold;
 }
 
 /* 価格表示 */
@@ -83,15 +108,6 @@ body {
     font-size: 1rem;
     color: var(--secondary);
     text-decoration: line-through;
-}
-
-.discount-badge {
-    background: linear-gradient(45deg, var(--danger-color), #ff6b6b);
-    color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: bold;
 }
 
 /* ストアバッジ */
@@ -167,6 +183,8 @@ body {
 .favorite-btn {
     position: relative;
     overflow: hidden;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: none;
 }
 
 .favorite-btn::before {

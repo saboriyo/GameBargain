@@ -129,68 +129,60 @@
     {% endif %}
 
     <!-- 最近追加されたゲーム -->
-    <section class="mb-5">
-        <div class="d-flex align-items-center mb-4">
-            <h2 class="mb-0">
-                <i class="bi bi-star text-warning me-2"></i>
-                最近追加されたゲーム
-            </h2>
-        </div>
-        
-        <div class="row">
-            {% for game in featured_games %}
-            <div class="col-lg-4 col-md-6 mb-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="position-relative">
-                        <img src="{{ game.image_url }}" class="card-img-top" alt="{{ game.title }}" style="height: 200px; object-fit: cover;">
-                        <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white p-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-bold">最安値</span>
-                                <span class="badge bg-success">{{ game.lowest_store|upper }}</span>
+    <section class="recent-games mt-5">
+        <div class="container">
+            <h3 class="section-title mb-4">最近追加されたゲーム</h3>
+            <div class="row justify-content-center">
+                {% for game in recent_games %}
+                <div class="col-sm-6 col-md-3 mb-4">
+                    <a href="{{ url_for('main.game_detail', game_id=game.id) }}" class="text-decoration-none">
+                        <div class="card h-100 game-card">
+                            <div class="position-relative">
+                                <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                                     class="card-img-top" 
+                                     alt="{{ game.title }}"
+                                     style="height: 200px; object-fit: cover;">
+                                
+                                <!-- 割引バッジ (オプション) -->
+                                {% if game.lowest_price and game.lowest_price.discount_percent > 0 %}
+                                <div class="discount-badge">
+                                    -{{ game.lowest_price.discount_percent }}%
+                                </div>
+                                {% endif %}
                             </div>
-                            <div class="fs-5 fw-bold">¥{{ "{:,}".format(game.lowest_price) }}</div>
-                        </div>
-                    </div>
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">{{ game.title }}</h5>
-                        <p class="card-text text-muted small mb-3">{{ game.developer }}</p>
-                        
-                        <!-- ストア別価格 -->
-                        <div class="mb-3">
-                            {% for store, price_info in game.prices.items() %}
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="badge bg-light text-dark">{{ store|upper }}</span>
-                                <div>
-                                    {% if price_info.discount > 0 %}
-                                    <span class="text-muted text-decoration-line-through small">¥{{ "{:,}".format(price_info.original) }}</span>
-                                    <span class="fw-bold text-danger ms-1">¥{{ "{:,}".format(price_info.current) }}</span>
-                                    <span class="badge bg-danger ms-1">-{{ price_info.discount }}%</span>
-                                    {% else %}
-                                    <span class="fw-bold">¥{{ "{:,}".format(price_info.current) }}</span>
+                            
+                            <div class="card-body">
+                                <h6 class="card-title text-dark mb-2">{{ game.title }}</h6>
+                                
+                                <!-- 価格情報 (オプション) -->
+                                {% if game.lowest_price %}
+                                <div class="price-info">
+                                    <span class="text-success fw-bold">¥{{ "{:,}".format(game.lowest_price.price|int) }}</span>
+                                    {% if game.lowest_price.original_price > game.lowest_price.price %}
+                                    <small class="text-muted text-decoration-line-through ms-2">
+                                        ¥{{ "{:,}".format(game.lowest_price.original_price|int) }}
+                                    </small>
                                     {% endif %}
                                 </div>
+                                {% endif %}
                             </div>
-                            {% endfor %}
                         </div>
-                        
-                        <div class="d-flex gap-2 mt-auto">
-                            <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
-                               class="btn btn-primary btn-sm flex-grow-1">
-                                <i class="bi bi-eye me-1"></i>詳細を見る
-                            </a>
-                            {% if current_user.is_authenticated %}
-                            <button class="btn btn-outline-danger btn-sm favorite-btn" 
-                                    data-game-id="{{ game.id }}" 
-                                    data-bs-toggle="tooltip" 
-                                    title="お気に入りに追加">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                            {% endif %}
-                        </div>
+                    </a>
+                    
+                    <!-- お気に入りボタン (ログイン時のみ表示) -->
+                    {% if current_user.is_authenticated %}
+                    <div class="position-absolute top-0 end-0 m-2">
+                        <button class="btn btn-sm btn-outline-light favorite-btn" 
+                                data-game-id="{{ game.id }}"
+                                data-bs-toggle="tooltip" 
+                                title="お気に入りに追加">
+                            <i class="bi bi-heart"></i>
+                        </button>
                     </div>
+                    {% endif %}
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </section>
 
