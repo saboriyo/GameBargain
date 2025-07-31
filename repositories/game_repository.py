@@ -158,8 +158,23 @@ class GameRepository:
         Returns:
             GameModel: 保存されたゲーム情報
         """
-        self.session.add(game)
-        self.session.flush()  # IDを取得するため
+        # バリデーション実行
+        game.validate()
+        
+        # NULL IDチェック
+        if game.id is None:
+            # 新規保存の場合
+            self.session.add(game)
+            self.session.flush()  # IDを取得するため
+            
+            # IDが正しく設定されたか確認
+            if game.id is None:
+                raise ValueError("ゲームの保存に失敗しました: IDがNULLです")
+        else:
+            # 更新の場合
+            self.session.merge(game)
+            self.session.flush()
+        
         return game
     
     def update(self, game: GameModel, **kwargs) -> GameModel:
@@ -221,6 +236,40 @@ class GameRepository:
             self.session.rollback()
             raise e
     
+    def save_external_games_from_api(self, external_games: List[Dict[str, Any]]) -> List[GameModel]:
+        """
+        外部APIから取得したゲーム情報を一括保存
+        
+        Args:
+            external_games: 外部APIからのゲーム情報リスト
+            
+        Returns:
+            List[GameModel]: 保存されたゲーム一覧
+        """
+        saved_games = []
+        
+        try:
+            for game_data in external_games:
+                # Steam APIのデータかEpic Games Store APIのデータかを判定
+                if 'steam_appid' in game_data:
+                    saved_game = self._save_single_steam_game(game_data)
+                elif 'epic_namespace' in game_data:
+                    saved_game = self._save_single_epic_game(game_data)
+                else:
+                    # 不明なデータ形式はスキップ
+                    continue
+                
+                if saved_game:
+                    saved_games.append(saved_game)
+            
+            # 一括でコミット
+            self.session.commit()
+            return saved_games
+            
+        except Exception as e:
+            self.session.rollback()
+            raise e
+    
     def _save_single_steam_game(self, steam_game: Dict[str, Any]) -> Optional[GameModel]:
         """
         単一のSteam ゲームをデータベースに保存
@@ -239,13 +288,18 @@ class GameRepository:
             # steam_appidを文字列に変換
             steam_appid = str(steam_appid)
             
-            # 既存チェック
+            title = steam_game.get('title')
+            if not title:
+                return None
+            
+            # まず、Steam App IDで既存チェック
             existing_game = self.get_by_steam_appid(steam_appid)
             
             if existing_game:
-                # 既存ゲームの更新
+                # 既存ゲームの更新（Steam App IDで見つかった場合）
+                print(f"Steam App IDで既存ゲームを更新: {existing_game.title} (ID: {existing_game.id})")
                 update_data = {
-                    'title': steam_game.get('title') or existing_game.title,
+                    'title': title or existing_game.title,
                     'description': steam_game.get('description') or existing_game.description,
                     'developer': steam_game.get('developer') or existing_game.developer,
                     'publisher': steam_game.get('publisher') or existing_game.publisher,
@@ -257,21 +311,76 @@ class GameRepository:
                 }
                 
                 return self.update(existing_game, **update_data)
+            
+            # Steam App IDで見つからない場合、タイトルで検索
+            normalized_title = self._normalize_title(title)
+            existing_game_by_title = self.session.query(Game).filter(
+                Game.normalized_title == normalized_title
+            ).first()
+            
+            if existing_game_by_title:
+                # 同じタイトルのゲームが見つかった場合、Steamデータを優先してEpic情報を保持
+                print(f"同じタイトルのゲームにSteam情報を追加: {existing_game_by_title.title} (ID: {existing_game_by_title.id})")
+                
+                # Epicデータが存在する場合は、Steamデータを優先してEpic情報を保持
+                if existing_game_by_title.epic_namespace:
+                    print(f"  Epicデータが存在するため、Steamデータを優先してEpic情報を保持")
+                    
+                    # 同じSteam App IDを持つ既存のゲームがあるかチェック
+                    existing_steam_game = self.session.query(Game).filter(
+                        Game.steam_appid == steam_appid
+                    ).first()
+                    
+                    if existing_steam_game and existing_steam_game.id != existing_game_by_title.id:
+                        # 既存のSteamゲームを削除（UNIQUE制約を回避）
+                        print(f"  既存のSteamゲーム (ID: {existing_steam_game.id}) を削除してマージします")
+                        self.session.delete(existing_steam_game)
+                        self.session.commit()
+                    
+                    update_data = {
+                        'steam_appid': steam_appid,
+                        'title': title,
+                        'description': steam_game.get('description') or existing_game_by_title.description,
+                        'developer': steam_game.get('developer') or existing_game_by_title.developer,
+                        'publisher': steam_game.get('publisher') or existing_game_by_title.publisher,
+                        'image_url': steam_game.get('image_url') or existing_game_by_title.image_url,
+                        'steam_url': steam_game.get('steam_url') or f"https://store.steampowered.com/app/{steam_appid}/",
+                        'steam_rating': steam_game.get('steam_rating'),
+                        'metacritic_score': steam_game.get('metacritic_score'),
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                else:
+                    # Epicデータが存在しない場合は、Steamデータで更新
+                    print(f"  Epicデータが存在しないため、Steamデータで更新")
+                    genres = steam_game.get('genres', [])
+                    genres_str = ','.join(genres) if isinstance(genres, list) else str(genres) if genres else ''
+                    
+                    update_data = {
+                        'steam_appid': steam_appid,
+                        'title': title,
+                        'description': steam_game.get('description') or existing_game_by_title.description,
+                        'developer': steam_game.get('developer') or existing_game_by_title.developer,
+                        'publisher': steam_game.get('publisher') or existing_game_by_title.publisher,
+                        'genres': genres_str,
+                        'image_url': steam_game.get('image_url') or existing_game_by_title.image_url,
+                        'steam_url': steam_game.get('steam_url') or f"https://store.steampowered.com/app/{steam_appid}/",
+                        'steam_rating': steam_game.get('steam_rating'),
+                        'metacritic_score': steam_game.get('metacritic_score'),
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                
+                return self.update(existing_game_by_title, **update_data)
             else:
                 # 新規ゲームの作成
+                print(f"新規Steamゲームを作成: {title} (Steam App ID: {steam_appid})")
                 genres = steam_game.get('genres', [])
                 genres_str = ','.join(genres) if isinstance(genres, list) else str(genres) if genres else ''
-                
-                # 必須フィールドのデフォルト値設定
-                title = steam_game.get('title')
-                if not title:
-                    return None
                 
                 # Gameインスタンスを辞書で作成
                 game_data = {
                     'steam_appid': steam_appid,
                     'title': title,
-                    'normalized_title': self._normalize_title(title),
+                    'normalized_title': normalized_title,
                     'description': steam_game.get('description') or f"Steam App ID: {steam_appid}",
                     'developer': steam_game.get('developer') or '不明',
                     'publisher': steam_game.get('publisher') or '不明',
@@ -286,7 +395,123 @@ class GameRepository:
                 game = GameModel(**game_data)
                 return self.save(game)
                 
-        except Exception:
+        except Exception as e:
+            print(f"Steamゲーム保存エラー: {e}")
+            return None
+    
+    def _save_single_epic_game(self, epic_game: Dict[str, Any]) -> Optional[GameModel]:
+        """
+        単一のEpic Games Store ゲームをデータベースに保存
+        
+        Args:
+            epic_game: Epic Games Store APIからのゲーム情報
+            
+        Returns:
+            Optional[GameModel]: 保存されたゲーム（失敗時はNone）
+        """
+        try:
+            epic_namespace = epic_game.get('epic_namespace')
+            if not epic_namespace:
+                return None
+            
+            title = epic_game.get('title')
+            if not title:
+                return None
+            
+            # まず、Epic Games Storeのnamespaceで既存チェック
+            existing_game = self.session.query(Game).filter(
+                Game.epic_namespace == epic_namespace
+            ).first()
+            
+            if existing_game:
+                # 既存ゲームの更新（Epic namespaceで見つかった場合）
+                print(f"Epic namespaceで既存ゲームを更新: {existing_game.title} (ID: {existing_game.id})")
+                update_data = {
+                    'title': title or existing_game.title,
+                    'description': epic_game.get('description') or existing_game.description,
+                    'developer': epic_game.get('developer') or existing_game.developer,
+                    'publisher': epic_game.get('publisher') or existing_game.publisher,
+                    'image_url': epic_game.get('image_url') or existing_game.image_url,
+                    'epic_url': epic_game.get('epic_url') or f"https://store.epicgames.com/ja/p/{epic_game.get('productSlug', '')}",
+                    'updated_at': datetime.now(timezone.utc)
+                }
+                
+                return self.update(existing_game, **update_data)
+            
+            # Epic namespaceで見つからない場合、タイトルで検索
+            normalized_title = self._normalize_title(title)
+            existing_game_by_title = self.session.query(Game).filter(
+                Game.normalized_title == normalized_title
+            ).first()
+            
+            if existing_game_by_title:
+                # 同じタイトルのゲームが見つかった場合、Steamデータを優先してEpic情報を追加
+                print(f"同じタイトルのゲームにEpic情報を追加: {existing_game_by_title.title} (ID: {existing_game_by_title.id})")
+                
+                # Steamデータが存在する場合は、Steamデータを優先してEpic情報のみを更新
+                if existing_game_by_title.steam_appid:
+                    print(f"  Steamデータが存在するため、Epic情報のみを追加")
+                    
+                    # 同じEpic namespaceを持つ既存のゲームがあるかチェック
+                    existing_epic_game = self.session.query(Game).filter(
+                        Game.epic_namespace == epic_namespace
+                    ).first()
+                    
+                    if existing_epic_game and existing_epic_game.id != existing_game_by_title.id:
+                        # 既存のEpicゲームを削除（UNIQUE制約を回避）
+                        print(f"  既存のEpicゲーム (ID: {existing_epic_game.id}) を削除してマージします")
+                        self.session.delete(existing_epic_game)
+                        self.session.commit()
+                    
+                    update_data = {
+                        'epic_namespace': epic_namespace,
+                        'epic_url': epic_game.get('epic_url') or f"https://store.epicgames.com/ja/p/{epic_game.get('productSlug', '')}",
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                else:
+                    # Steamデータが存在しない場合は、Epicデータで更新
+                    print(f"  Steamデータが存在しないため、Epicデータで更新")
+                    tags = epic_game.get('tags', [])
+                    tags_str = ','.join(tags) if isinstance(tags, list) else str(tags) if tags else ''
+                    
+                    update_data = {
+                        'epic_namespace': epic_namespace,
+                        'title': title,
+                        'description': epic_game.get('description') or existing_game_by_title.description,
+                        'developer': epic_game.get('developer') or existing_game_by_title.developer,
+                        'publisher': epic_game.get('publisher') or existing_game_by_title.publisher,
+                        'image_url': epic_game.get('image_url') or existing_game_by_title.image_url,
+                        'epic_url': epic_game.get('epic_url') or f"https://store.epicgames.com/ja/p/{epic_game.get('productSlug', '')}",
+                        'genres': tags_str,  # Epic Games Storeではtagsをgenresとして使用
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                
+                return self.update(existing_game_by_title, **update_data)
+            else:
+                # 新規ゲームの作成
+                print(f"新規Epicゲームを作成: {title} (Epic Namespace: {epic_namespace})")
+                tags = epic_game.get('tags', [])
+                tags_str = ','.join(tags) if isinstance(tags, list) else str(tags) if tags else ''
+                
+                # Gameインスタンスを辞書で作成
+                game_data = {
+                    'epic_namespace': epic_namespace,
+                    'title': title,
+                    'normalized_title': normalized_title,
+                    'description': epic_game.get('description') or f"Epic Games Store: {epic_namespace}",
+                    'developer': epic_game.get('developer') or '不明',
+                    'publisher': epic_game.get('publisher') or '不明',
+                    'genres': tags_str,  # Epic Games Storeではtagsをgenresとして使用
+                    'image_url': epic_game.get('image_url') or '',
+                    'epic_url': epic_game.get('epic_url') or f"https://store.epicgames.com/ja/p/{epic_game.get('productSlug', '')}",
+                    'is_active': True
+                }
+                
+                game = GameModel(**game_data)
+                return self.save(game)
+                
+        except Exception as e:
+            print(f"Epicゲーム保存エラー: {e}")
             return None
     
     def _normalize_title(self, title: str) -> str:
@@ -303,6 +528,52 @@ class GameRepository:
         # 英数字以外を除去し、小文字に変換
         normalized = re.sub(r'[^\w\s]', '', title.lower())
         return ' '.join(normalized.split())
+    
+    def _parse_genres(self, genres_data) -> List[str]:
+        """
+        ジャンルデータをパース
+        
+        Args:
+            genres_data: ジャンルデータ（文字列、リスト、None）
+            
+        Returns:
+            List[str]: ジャンルのリスト
+        """
+        if genres_data is None:
+            return []
+        
+        if isinstance(genres_data, list):
+            return genres_data
+        
+        if isinstance(genres_data, str):
+            if genres_data.strip():
+                return [genre.strip() for genre in genres_data.split(',') if genre.strip()]
+            return []
+        
+        return []
+    
+    def _parse_platforms(self, platforms_data) -> List[str]:
+        """
+        プラットフォームデータをパース
+        
+        Args:
+            platforms_data: プラットフォームデータ（文字列、リスト、None）
+            
+        Returns:
+            List[str]: プラットフォームのリスト
+        """
+        if platforms_data is None:
+            return []
+        
+        if isinstance(platforms_data, list):
+            return platforms_data
+        
+        if isinstance(platforms_data, str):
+            if platforms_data.strip():
+                return [platform.strip() for platform in platforms_data.split(',') if platform.strip()]
+            return []
+        
+        return []
 
     def commit(self):
         """トランザクションをコミット"""
@@ -311,49 +582,116 @@ class GameRepository:
     def rollback(self):
         """トランザクションをロールバック"""
         self.session.rollback()
+    
+    def cleanup_null_id_records(self) -> int:
+        """
+        NULL IDレコードを削除
+        
+        Returns:
+            int: 削除されたレコード数
+        """
+        try:
+            from sqlalchemy import text
+            result = self.session.execute(text("DELETE FROM games WHERE id IS NULL"))
+            deleted_count = result.rowcount
+            self.session.commit()
+            return deleted_count
+        except Exception as e:
+            self.session.rollback()
+            raise e
+    
+    def validate_database_integrity(self) -> Dict[str, Any]:
+        """
+        データベースの整合性をチェック
+        
+        Returns:
+            Dict[str, Any]: 整合性チェック結果
+        """
+        try:
+            from sqlalchemy import text
+            
+            # NULL IDレコード数を確認
+            result = self.session.execute(text("SELECT COUNT(*) as count FROM games WHERE id IS NULL"))
+            null_id_count = result.fetchone()[0]
+            
+            # 重複steam_appid数を確認
+            result = self.session.execute(text("""
+                SELECT COUNT(*) as count FROM (
+                    SELECT steam_appid, COUNT(*) as cnt 
+                    FROM games 
+                    WHERE steam_appid IS NOT NULL 
+                    GROUP BY steam_appid 
+                    HAVING COUNT(*) > 1
+                )
+            """))
+            duplicate_steam_count = result.fetchone()[0]
+            
+            # 重複epic_namespace数を確認
+            result = self.session.execute(text("""
+                SELECT COUNT(*) as count FROM (
+                    SELECT epic_namespace, COUNT(*) as cnt 
+                    FROM games 
+                    WHERE epic_namespace IS NOT NULL 
+                    GROUP BY epic_namespace 
+                    HAVING COUNT(*) > 1
+                )
+            """))
+            duplicate_epic_count = result.fetchone()[0]
+            
+            return {
+                'null_id_count': null_id_count,
+                'duplicate_steam_count': duplicate_steam_count,
+                'duplicate_epic_count': duplicate_epic_count,
+                'is_valid': null_id_count == 0 and duplicate_steam_count == 0 and duplicate_epic_count == 0
+            }
+        except Exception as e:
+            return {
+                'error': str(e),
+                'is_valid': False
+            }
 
     def format_game_for_web_template(self, game_data, price_repository=None) -> Dict[str, Any]:
         """
         ゲームデータをWebテンプレート用に整形
-        GameSearchServiceからのデータとGameモデルの両方に対応
+        Gameモデルオブジェクトを辞書形式に変換
         
         Args:
-            game_data: GameSearchServiceからの辞書データまたはGameモデルオブジェクト
+            game_data: Gameモデルオブジェクト
             price_repository: PriceRepositoryインスタンス（価格情報取得用）
             
         Returns:
             Dict: 整形されたゲームデータ
         """
-        # GameSearchServiceからの辞書データの場合
-        if isinstance(game_data, dict):
+        # Noneチェック
+        if game_data is None:
             return {
-                'id': game_data.get('id'),
-                'title': game_data.get('title'),
-                'description': game_data.get('description'),
-                'developer': game_data.get('developer'),
-                'publisher': game_data.get('publisher'),
-                'release_date': game_data.get('release_date') or '',
-                'genres': game_data.get('genres', []),
-                'platforms': game_data.get('platforms', []),
-                'image_url': game_data.get('image_url') or 'https://via.placeholder.com/300x400',
-                'steam_url': game_data.get('steam_url'),
-                'steam_rating': game_data.get('steam_rating'),
-                'metacritic_score': game_data.get('metacritic_score'),
-                'current_price': game_data.get('current_price') or 0.0,
-                'original_price': game_data.get('original_price') or 0.0,
-                'discount_percent': game_data.get('discount_percent', 0),
-                'is_on_sale': game_data.get('discount_percent', 0) > 0,
+                'id': None,
+                'title': '不明なゲーム',
+                'description': '',
+                'developer': '',
+                'publisher': '',
+                'release_date': '',
+                'genres': [],
+                'platforms': [],
+                'image_url': 'https://via.placeholder.com/300x400',
+                'steam_url': '',
+                'steam_rating': None,
+                'metacritic_score': None,
+                'current_price': 0.0,
+                'original_price': 0.0,
+                'discount_percent': 0,
+                'is_on_sale': False,
                 'lowest_price': {
-                    'price': game_data.get('current_price') or 0.0,
+                    'price': 0.0,
                     'store': 'steam',
-                    'discount_percent': game_data.get('discount_percent', 0),
-                    'original_price': game_data.get('original_price') or 0.0
+                    'discount_percent': 0,
+                    'original_price': 0.0
                 },
                 'lowest_store': 'steam',
-                'prices': game_data.get('prices', {})
+                'prices': {}
             }
 
-        # Gameモデルオブジェクトの場合
+        # Gameモデルオブジェクトを辞書形式に変換
         formatted_game = {
             'id': game_data.id,
             'title': game_data.title,
@@ -361,10 +699,11 @@ class GameRepository:
             'developer': game_data.developer,
             'publisher': game_data.publisher,
             'release_date': game_data.release_date.strftime('%Y-%m-%d') if game_data.release_date else '',
-            'genres': game_data.genres.split(',') if isinstance(game_data.genres, str) and game_data.genres else (game_data.genres if isinstance(game_data.genres, list) else []),
-            'platforms': game_data.platforms.split(',') if isinstance(game_data.platforms, str) and game_data.platforms else (game_data.platforms if isinstance(game_data.platforms, list) else []),
+            'genres': self._parse_genres(game_data.genres),
+            'platforms': self._parse_platforms(game_data.platforms),
             'image_url': game_data.image_url or 'https://via.placeholder.com/300x400',
             'steam_url': game_data.steam_url,
+            'epic_url': game_data.epic_url,
             'steam_rating': game_data.steam_rating,
             'metacritic_score': game_data.metacritic_score,
             'current_price': 0.0,
@@ -382,7 +721,7 @@ class GameRepository:
         }
 
         # 価格情報を取得してマージ
-        if price_repository:
+        if price_repository and game_data.id:
             try:
                 formatted_prices = price_repository.get_formatted_prices_for_game(game_data.id)
                 if formatted_prices:

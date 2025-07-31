@@ -66,20 +66,32 @@ def index():
         featured_games = []
         for game in featured_games_db:
             try:
+                # Noneチェック
+                if game is None:
+                    current_app.logger.warning("Noneゲームオブジェクトをスキップ")
+                    continue
+                
                 formatted_game = game_repository.format_game_for_web_template(game, price_repository)
                 featured_games.append(formatted_game)
             except Exception as format_error:
-                current_app.logger.error(f"ゲーム整形エラー (ID: {game.id}): {format_error}")
+                game_id = getattr(game, 'id', 'Unknown') if game is not None else 'None'
+                current_app.logger.error(f"ゲーム整形エラー (ID: {game_id}): {format_error}")
                 # エラーが発生したゲームはスキップ
                 continue
         
         sale_games = []
         for game in sale_games_db:
             try:
+                # Noneチェック
+                if game is None:
+                    current_app.logger.warning("Noneセールゲームオブジェクトをスキップ")
+                    continue
+                
                 formatted_game = game_repository.format_game_for_web_template(game, price_repository)
                 sale_games.append(formatted_game)
             except Exception as format_error:
-                current_app.logger.error(f"セールゲーム整形エラー (ID: {game.id}): {format_error}")
+                game_id = getattr(game, 'id', 'Unknown') if game is not None else 'None'
+                current_app.logger.error(f"セールゲーム整形エラー (ID: {game_id}): {format_error}")
                 continue
         
         current_app.logger.info(f"トップページ表示: 注目ゲーム={len(featured_games)}件, セール={len(sale_games)}件")
@@ -142,20 +154,29 @@ def search():
             price_repository = PriceRepository()
             search_service = GameSearchService()
             recent_games_data = search_service.get_recent_games(4)
-            recent_games = [game_repository.format_game_for_web_template(game, price_repository) for game in recent_games_data]
+            recent_games = []
+            for game in recent_games_data:
+                if game is not None:
+                    try:
+                        # Gameモデルオブジェクトを辞書形式に変換
+                        formatted_game = game_repository.format_game_for_web_template(game, price_repository)
+                        recent_games.append(formatted_game)
+                    except Exception as e:
+                        current_app.logger.error(f"最近のゲーム整形エラー: {e}")
+                        continue
         except Exception as e:
             current_app.logger.error(f"最近のゲーム取得エラー: {e}")
             recent_games = []
         
         return render_template('search.html', 
-                             games=[], 
-                             query=query,
-                             filters={'min_price': '', 'max_price': '', 'genre': '', 'platform': '', 'sort': 'relevance'},
-                             has_filters=has_filters,
-                             active_filters=active_filters,
-                             popular_keywords=popular_keywords,
-                             recent_games=recent_games,
-                             page_title='ゲーム検索')
+                            games=[], 
+                            query=query,
+                            filters={'min_price': '', 'max_price': '', 'genre': '', 'platform': '', 'sort': 'relevance'},
+                            has_filters=has_filters,
+                            active_filters=active_filters,
+                            popular_keywords=popular_keywords,
+                            recent_games=recent_games,
+                            page_title='ゲーム検索')
     
     try:
         current_app.logger.info(f"ゲーム検索開始: '{query}'")
@@ -176,7 +197,16 @@ def search():
         
         game_repository = GameRepository()
         price_repository = PriceRepository()
-        search_results = [game_repository.format_game_for_web_template(game, price_repository) for game in games]
+        search_results = []
+        for game in games:
+            if game is not None:
+                try:
+                    # Gameモデルオブジェクトを辞書形式に変換
+                    formatted_game = game_repository.format_game_for_web_template(game, price_repository)
+                    search_results.append(formatted_game)
+                except Exception as e:
+                    current_app.logger.error(f"検索結果ゲーム整形エラー: {e}")
+                    continue
         
         # ページネーション情報をWeb用に変換
         pagination = {
@@ -217,6 +247,7 @@ def search():
                              
     except Exception as e:
         current_app.logger.error(f"ゲーム検索エラー: {e}")
+        current_app.logger.exception("ゲーム検索エラーの詳細:")
         
         # エラー時も最低限の変数を渡す
         pagination = {

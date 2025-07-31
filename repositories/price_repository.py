@@ -13,8 +13,9 @@ class PriceRepository:
     """
     def __init__(self, session: Optional[Session] = None):
         self.session = session or db.session
-        # Steam APIサービスの遅延インポート（循環参照回避）
+        # 外部APIサービスの遅延インポート（循環参照回避）
         self._steam_service = None
+        self._epic_service = None
 
     @property
     def steam_service(self):
@@ -23,6 +24,14 @@ class PriceRepository:
             from services.steam_service import SteamAPIService
             self._steam_service = SteamAPIService()
         return self._steam_service
+
+    @property
+    def epic_service(self):
+        """Epic Games Store APIサービスを遅延初期化"""
+        if self._epic_service is None:
+            from services.epic_service import EpicGamesStoreService
+            self._epic_service = EpicGamesStoreService()
+        return self._epic_service
 
     def is_price_data_stale(self, price: Price, max_age_hours: int = 1) -> bool:
         """
@@ -126,8 +135,57 @@ class PriceRepository:
                     self.session.rollback()
             else:
                 print(f"[DEBUG] Steam App IDが設定されていません: game_id={game_id}")
-        else:
-            print(f"[DEBUG] 価格データは最新です: game_id={game_id}, updated_at={getattr(steam_price, 'updated_at', None)}")
+        
+        # Epic Games Store価格データの確認と更新
+        epic_price = next((p for p in existing_prices if getattr(p, 'store', '') == 'epic'), None)
+        
+        if not epic_price or self.is_price_data_stale(epic_price, max_age_hours):
+            print(f"[DEBUG] Epic Games Store価格データが古いまたは存在しません。APIから最新価格を取得します: game_id={game_id}")
+            
+            # ゲーム情報を取得してEpic Games Store namespaceを確認
+            game = self.session.query(Game).filter_by(id=game_id).first()
+            if game and getattr(game, 'epic_namespace', None):
+                epic_namespace = getattr(game, 'epic_namespace')
+                
+                try:
+                    # Epic Games Store APIから最新価格を取得
+                    price_data = self.epic_service.get_game_price(epic_namespace)
+                    
+                    if price_data and price_data.get('price') is not None:
+                        if epic_price:
+                            # 既存データを更新
+                            setattr(epic_price, 'regular_price', Decimal(str(price_data.get('original_price', price_data.get('price', 0)))))
+                            setattr(epic_price, 'sale_price', Decimal(str(price_data.get('price', 0))) if price_data.get('discount_percent', 0) > 0 else None)
+                            setattr(epic_price, 'discount_rate', price_data.get('discount_percent', 0))
+                            setattr(epic_price, 'is_on_sale', price_data.get('discount_percent', 0) > 0)
+                            setattr(epic_price, 'updated_at', datetime.now(timezone.utc))
+                            print(f"[DEBUG] Epic Games Store価格データ更新: game_id={game_id}, price=¥{price_data.get('price')}")
+                        else:
+                            # 新規データを作成
+                            new_price = Price()
+                            setattr(new_price, 'game_id', game_id)
+                            setattr(new_price, 'store', 'epic')
+                            setattr(new_price, 'regular_price', Decimal(str(price_data.get('original_price', price_data.get('price', 0)))))
+                            setattr(new_price, 'sale_price', Decimal(str(price_data.get('price', 0))) if price_data.get('discount_percent', 0) > 0 else None)
+                            setattr(new_price, 'discount_rate', price_data.get('discount_percent', 0))
+                            setattr(new_price, 'currency', 'JPY')
+                            setattr(new_price, 'is_on_sale', price_data.get('discount_percent', 0) > 0)
+                            
+                            self.session.add(new_price)
+                            existing_prices.append(new_price)
+                            print(f"[DEBUG] Epic Games Store価格データ新規作成: game_id={game_id}, price=¥{price_data.get('price')}")
+                        
+                        # 変更をコミット
+                        self.session.commit()
+                        
+                    else:
+                        print(f"[DEBUG] Epic Games Store APIから有効な価格データを取得できませんでした: game_id={game_id}")
+                        
+                except Exception as e:
+                    print(f"[DEBUG] Epic Games Store価格取得エラー: game_id={game_id}, error={e}")
+                    self.session.rollback()
+            else:
+                print(f"[DEBUG] Epic Games Store namespaceが設定されていません: game_id={game_id}")
         
         # 最新の価格データを再取得して返す
         return self.get_latest_prices(game_id)
