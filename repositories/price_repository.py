@@ -63,11 +63,11 @@ class PriceRepository:
         if max_age_hours is None:
             try:
                 from flask import current_app
-                config_value = current_app.config.get('PRICE_CACHE_MAX_AGE_HOURS', 1)
-                max_age_hours = int(config_value) if config_value is not None else 1
+                config_value = current_app.config.get('PRICE_CACHE_MAX_AGE_HOURS', DEFAULT_MAX_AGE_HOURS)
+                max_age_hours = int(config_value) if config_value is not None else DEFAULT_MAX_AGE_HOURS
             except RuntimeError:
                 # Flask context外の場合のデフォルト値
-                max_age_hours = 1
+                max_age_hours = DEFAULT_MAX_AGE_HOURS
         else:
             max_age_hours = int(max_age_hours)
         # 既存の価格データを取得
