@@ -119,11 +119,11 @@ const GameBargain = {
         this.hideSuggestions(inputElement); // 既存の候補を削除
 
         const suggestionsContainer = document.createElement('div');
-        suggestionsContainer.className = 'search-suggestions';
+        suggestionsContainer.className = 'absolute top-full left-0 right-0 bg-gray-700 border border-gray-600 border-t-0 rounded-b-lg shadow-lg z-50 max-h-80 overflow-y-auto';
         
         suggestions.forEach(suggestion => {
             const item = document.createElement('div');
-            item.className = 'search-suggestion-item';
+            item.className = 'px-4 py-3 cursor-pointer border-b border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white transition-colors duration-200 last:border-b-0';
             item.textContent = suggestion;
             
             item.addEventListener('click', () => {
@@ -149,7 +149,7 @@ const GameBargain = {
     // 検索候補の非表示
     hideSuggestions(inputElement) {
         const parent = inputElement.parentElement;
-        const existing = parent.querySelector('.search-suggestions');
+        const existing = parent.querySelector('.absolute.top-full');
         if (existing) {
             existing.remove();
         }
