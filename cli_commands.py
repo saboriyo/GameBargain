@@ -184,8 +184,8 @@ def search_epic(query, limit, save_to_db):
     click.echo(f'Epic Games Store API検索: "{query}" (最大{limit}件)')
     
     try:
-        from services.epic_service import EpicGamesStoreAPI
-        epic_service = EpicGamesStoreAPI()
+        from services.epic_service import EpicGamesStoreService
+        epic_service = EpicGamesStoreService()
         
         # Epic Games Store APIから検索
         games = epic_service.search_games(query, limit)
@@ -436,8 +436,8 @@ def recent_games_epic(limit):
     click.echo(f'Epic Games Store API: 最近追加されたゲーム (上位{limit}件)')
     
     try:
-        from services.epic_service import EpicGamesStoreAPI
-        epic_service = EpicGamesStoreAPI()
+        from services.epic_service import EpicGamesStoreService
+        epic_service = EpicGamesStoreService()
         games = epic_service.get_recent_games(limit)
         
         if not games:
@@ -560,8 +560,8 @@ def popular_games_epic(limit):
     click.echo(f'Epic Games Store API: 人気ゲーム (上位{limit}件)')
     
     try:
-        from services.epic_service import EpicGamesStoreAPI
-        epic_service = EpicGamesStoreAPI()
+        from services.epic_service import EpicGamesStoreService
+        epic_service = EpicGamesStoreService()
         games = epic_service.get_popular_games(limit)
         
         if not games:
@@ -595,14 +595,137 @@ def popular_games_epic(limit):
 
 
 @click.command()
+@click.option('--query', '-q', required=True, help='検索クエリ（必須）')
+@click.option('--limit', '-l', default=20, help='取得件数 (デフォルト: 20)')
+@with_appcontext
+def search_epic_catalog(query, limit):
+    """Epic Games Store カタログAPIからゲーム検索"""
+    click.echo(f'Epic Games Store カタログAPI検索: "{query}" (最大{limit}件)')
+    
+    try:
+        from services.epic_service import EpicGamesStoreService
+        epic_service = EpicGamesStoreService()
+        
+        # カタログAPIから検索
+        games = epic_service.search_games_catalog(query, limit)
+        
+        # 結果の表示
+        click.echo(f'\nカタログAPI検索結果: {len(games)}件')
+        click.echo('-' * 80)
+        
+        if not games:
+            click.echo('該当するゲームが見つかりませんでした。')
+            return
+        
+        for i, game in enumerate(games, 1):
+            click.echo(f'{i}. {game.get("title", "タイトル不明")}')
+            
+            if game.get('developer'):
+                click.echo(f'   開発者: {game["developer"]}')
+            
+            if game.get('genres'):
+                genres = ', '.join(game['genres']) if isinstance(game['genres'], list) else game['genres']
+                click.echo(f'   ジャンル: {genres}')
+            
+            # 価格情報の表示
+            price_info = game.get('price_info', {})
+            if price_info.get('current_price'):
+                price = price_info['current_price']
+                original_price = price_info.get('original_price')
+                discount = price_info.get('discount_percent', 0)
+                
+                if original_price and discount > 0:
+                    click.echo(f'   価格: ¥{price:,.0f} (元価格: ¥{original_price:,.0f}, {discount}%OFF)')
+                else:
+                    click.echo(f'   価格: ¥{price:,.0f}')
+            elif price_info.get('is_free'):
+                click.echo('   価格: 無料')
+            else:
+                click.echo('   価格: 価格情報なし')
+            
+            if game.get('epic_url'):
+                click.echo(f'   Epic URL: {game["epic_url"]}')
+            
+            if game.get('epic_namespace'):
+                click.echo(f'   Epic Namespace: {game["epic_namespace"]}')
+            
+            click.echo()
+        
+    except Exception as e:
+        click.echo(f'エラーが発生しました: {e}', err=True)
+
+
+@click.command()
+@click.option('--query', '-q', required=True, help='検索クエリ（必須）')
+@click.option('--limit', '-l', default=20, help='取得件数 (デフォルト: 20)')
+@click.option('--namespace', default='epic', help='Epic Games Store namespace (デフォルト: epic)')
+@with_appcontext
+def search_epic_graphql(query, limit, namespace):
+    """Epic Games Store GraphQL APIからゲーム検索"""
+    click.echo(f'Epic Games Store GraphQL API検索: "{query}" (最大{limit}件, namespace: {namespace})')
+    
+    try:
+        from services.epic_service import EpicGamesStoreService
+        epic_service = EpicGamesStoreService()
+        
+        # GraphQL APIから検索
+        games = epic_service.search_games_graphql(query, limit, namespace)
+        
+        # 結果の表示
+        click.echo(f'\nGraphQL API検索結果: {len(games)}件')
+        click.echo('-' * 80)
+        
+        if not games:
+            click.echo('該当するゲームが見つかりませんでした。')
+            return
+        
+        for i, game in enumerate(games, 1):
+            click.echo(f'{i}. {game.get("title", "タイトル不明")}')
+            
+            if game.get('developer'):
+                click.echo(f'   開発者: {game["developer"]}')
+            
+            if game.get('genres'):
+                genres = ', '.join(game['genres']) if isinstance(game['genres'], list) else game['genres']
+                click.echo(f'   ジャンル: {genres}')
+            
+            # 価格情報の表示
+            price_info = game.get('price_info', {})
+            if price_info.get('current_price'):
+                price = price_info['current_price']
+                original_price = price_info.get('original_price')
+                discount = price_info.get('discount_percent', 0)
+                
+                if original_price and discount > 0:
+                    click.echo(f'   価格: ¥{price:,.0f} (元価格: ¥{original_price:,.0f}, {discount}%OFF)')
+                else:
+                    click.echo(f'   価格: ¥{price:,.0f}')
+            elif price_info.get('is_free'):
+                click.echo('   価格: 無料')
+            else:
+                click.echo('   価格: 価格情報なし')
+            
+            if game.get('epic_url'):
+                click.echo(f'   Epic URL: {game["epic_url"]}')
+            
+            if game.get('epic_namespace'):
+                click.echo(f'   Epic Namespace: {game["epic_namespace"]}')
+            
+            click.echo()
+        
+    except Exception as e:
+        click.echo(f'エラーが発生しました: {e}', err=True)
+
+
+@click.command()
 @with_appcontext
 def free_games_epic():
     """Epic Games Store APIから無料ゲーム一覧"""
     click.echo('Epic Games Store API: 無料ゲーム')
     
     try:
-        from services.epic_service import EpicGamesStoreAPI
-        epic_service = EpicGamesStoreAPI()
+        from services.epic_service import EpicGamesStoreService
+        epic_service = EpicGamesStoreService()
         games = epic_service.get_free_games()
         
         if not games:
@@ -881,6 +1004,8 @@ def register_commands(app):
     
     # ゲーム検索 - Epic Games Store API専用
     app.cli.add_command(search_epic)
+    app.cli.add_command(search_epic_catalog)
+    app.cli.add_command(search_epic_graphql)
     app.cli.add_command(recent_games_epic)
     app.cli.add_command(popular_games_epic)
     app.cli.add_command(free_games_epic)

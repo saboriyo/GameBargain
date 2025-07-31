@@ -288,14 +288,18 @@ class GameRepository:
             # steam_appidを文字列に変換
             steam_appid = str(steam_appid)
             
-            # 既存チェック（デバッグログ追加）
+            title = steam_game.get('title')
+            if not title:
+                return None
+            
+            # まず、Steam App IDで既存チェック
             existing_game = self.get_by_steam_appid(steam_appid)
             
             if existing_game:
-                # 既存ゲームの更新
-                print(f"既存ゲームを更新: {existing_game.title} (ID: {existing_game.id})")
+                # 既存ゲームの更新（Steam App IDで見つかった場合）
+                print(f"Steam App IDで既存ゲームを更新: {existing_game.title} (ID: {existing_game.id})")
                 update_data = {
-                    'title': steam_game.get('title') or existing_game.title,
+                    'title': title or existing_game.title,
                     'description': steam_game.get('description') or existing_game.description,
                     'developer': steam_game.get('developer') or existing_game.developer,
                     'publisher': steam_game.get('publisher') or existing_game.publisher,
@@ -307,22 +311,76 @@ class GameRepository:
                 }
                 
                 return self.update(existing_game, **update_data)
+            
+            # Steam App IDで見つからない場合、タイトルで検索
+            normalized_title = self._normalize_title(title)
+            existing_game_by_title = self.session.query(Game).filter(
+                Game.normalized_title == normalized_title
+            ).first()
+            
+            if existing_game_by_title:
+                # 同じタイトルのゲームが見つかった場合、Steamデータを優先してEpic情報を保持
+                print(f"同じタイトルのゲームにSteam情報を追加: {existing_game_by_title.title} (ID: {existing_game_by_title.id})")
+                
+                # Epicデータが存在する場合は、Steamデータを優先してEpic情報を保持
+                if existing_game_by_title.epic_namespace:
+                    print(f"  Epicデータが存在するため、Steamデータを優先してEpic情報を保持")
+                    
+                    # 同じSteam App IDを持つ既存のゲームがあるかチェック
+                    existing_steam_game = self.session.query(Game).filter(
+                        Game.steam_appid == steam_appid
+                    ).first()
+                    
+                    if existing_steam_game and existing_steam_game.id != existing_game_by_title.id:
+                        # 既存のSteamゲームを削除（UNIQUE制約を回避）
+                        print(f"  既存のSteamゲーム (ID: {existing_steam_game.id}) を削除してマージします")
+                        self.session.delete(existing_steam_game)
+                        self.session.commit()
+                    
+                    update_data = {
+                        'steam_appid': steam_appid,
+                        'title': title,
+                        'description': steam_game.get('description') or existing_game_by_title.description,
+                        'developer': steam_game.get('developer') or existing_game_by_title.developer,
+                        'publisher': steam_game.get('publisher') or existing_game_by_title.publisher,
+                        'image_url': steam_game.get('image_url') or existing_game_by_title.image_url,
+                        'steam_url': steam_game.get('steam_url') or f"https://store.steampowered.com/app/{steam_appid}/",
+                        'steam_rating': steam_game.get('steam_rating'),
+                        'metacritic_score': steam_game.get('metacritic_score'),
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                else:
+                    # Epicデータが存在しない場合は、Steamデータで更新
+                    print(f"  Epicデータが存在しないため、Steamデータで更新")
+                    genres = steam_game.get('genres', [])
+                    genres_str = ','.join(genres) if isinstance(genres, list) else str(genres) if genres else ''
+                    
+                    update_data = {
+                        'steam_appid': steam_appid,
+                        'title': title,
+                        'description': steam_game.get('description') or existing_game_by_title.description,
+                        'developer': steam_game.get('developer') or existing_game_by_title.developer,
+                        'publisher': steam_game.get('publisher') or existing_game_by_title.publisher,
+                        'genres': genres_str,
+                        'image_url': steam_game.get('image_url') or existing_game_by_title.image_url,
+                        'steam_url': steam_game.get('steam_url') or f"https://store.steampowered.com/app/{steam_appid}/",
+                        'steam_rating': steam_game.get('steam_rating'),
+                        'metacritic_score': steam_game.get('metacritic_score'),
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                
+                return self.update(existing_game_by_title, **update_data)
             else:
                 # 新規ゲームの作成
-                print(f"新規ゲームを作成: {steam_game.get('title')} (Steam App ID: {steam_appid})")
+                print(f"新規Steamゲームを作成: {title} (Steam App ID: {steam_appid})")
                 genres = steam_game.get('genres', [])
                 genres_str = ','.join(genres) if isinstance(genres, list) else str(genres) if genres else ''
-                
-                # 必須フィールドのデフォルト値設定
-                title = steam_game.get('title')
-                if not title:
-                    return None
                 
                 # Gameインスタンスを辞書で作成
                 game_data = {
                     'steam_appid': steam_appid,
                     'title': title,
-                    'normalized_title': self._normalize_title(title),
+                    'normalized_title': normalized_title,
                     'description': steam_game.get('description') or f"Steam App ID: {steam_appid}",
                     'developer': steam_game.get('developer') or '不明',
                     'publisher': steam_game.get('publisher') or '不明',
@@ -356,15 +414,20 @@ class GameRepository:
             if not epic_namespace:
                 return None
             
-            # 既存チェック（Epic Games Storeのnamespaceで検索）
+            title = epic_game.get('title')
+            if not title:
+                return None
+            
+            # まず、Epic Games Storeのnamespaceで既存チェック
             existing_game = self.session.query(Game).filter(
                 Game.epic_namespace == epic_namespace
             ).first()
             
             if existing_game:
-                # 既存ゲームの更新
+                # 既存ゲームの更新（Epic namespaceで見つかった場合）
+                print(f"Epic namespaceで既存ゲームを更新: {existing_game.title} (ID: {existing_game.id})")
                 update_data = {
-                    'title': epic_game.get('title') or existing_game.title,
+                    'title': title or existing_game.title,
                     'description': epic_game.get('description') or existing_game.description,
                     'developer': epic_game.get('developer') or existing_game.developer,
                     'publisher': epic_game.get('publisher') or existing_game.publisher,
@@ -374,21 +437,67 @@ class GameRepository:
                 }
                 
                 return self.update(existing_game, **update_data)
+            
+            # Epic namespaceで見つからない場合、タイトルで検索
+            normalized_title = self._normalize_title(title)
+            existing_game_by_title = self.session.query(Game).filter(
+                Game.normalized_title == normalized_title
+            ).first()
+            
+            if existing_game_by_title:
+                # 同じタイトルのゲームが見つかった場合、Steamデータを優先してEpic情報を追加
+                print(f"同じタイトルのゲームにEpic情報を追加: {existing_game_by_title.title} (ID: {existing_game_by_title.id})")
+                
+                # Steamデータが存在する場合は、Steamデータを優先してEpic情報のみを更新
+                if existing_game_by_title.steam_appid:
+                    print(f"  Steamデータが存在するため、Epic情報のみを追加")
+                    
+                    # 同じEpic namespaceを持つ既存のゲームがあるかチェック
+                    existing_epic_game = self.session.query(Game).filter(
+                        Game.epic_namespace == epic_namespace
+                    ).first()
+                    
+                    if existing_epic_game and existing_epic_game.id != existing_game_by_title.id:
+                        # 既存のEpicゲームを削除（UNIQUE制約を回避）
+                        print(f"  既存のEpicゲーム (ID: {existing_epic_game.id}) を削除してマージします")
+                        self.session.delete(existing_epic_game)
+                        self.session.commit()
+                    
+                    update_data = {
+                        'epic_namespace': epic_namespace,
+                        'epic_url': epic_game.get('epic_url') or f"https://store.epicgames.com/ja/p/{epic_game.get('productSlug', '')}",
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                else:
+                    # Steamデータが存在しない場合は、Epicデータで更新
+                    print(f"  Steamデータが存在しないため、Epicデータで更新")
+                    tags = epic_game.get('tags', [])
+                    tags_str = ','.join(tags) if isinstance(tags, list) else str(tags) if tags else ''
+                    
+                    update_data = {
+                        'epic_namespace': epic_namespace,
+                        'title': title,
+                        'description': epic_game.get('description') or existing_game_by_title.description,
+                        'developer': epic_game.get('developer') or existing_game_by_title.developer,
+                        'publisher': epic_game.get('publisher') or existing_game_by_title.publisher,
+                        'image_url': epic_game.get('image_url') or existing_game_by_title.image_url,
+                        'epic_url': epic_game.get('epic_url') or f"https://store.epicgames.com/ja/p/{epic_game.get('productSlug', '')}",
+                        'genres': tags_str,  # Epic Games Storeではtagsをgenresとして使用
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                
+                return self.update(existing_game_by_title, **update_data)
             else:
                 # 新規ゲームの作成
+                print(f"新規Epicゲームを作成: {title} (Epic Namespace: {epic_namespace})")
                 tags = epic_game.get('tags', [])
                 tags_str = ','.join(tags) if isinstance(tags, list) else str(tags) if tags else ''
-                
-                # 必須フィールドのデフォルト値設定
-                title = epic_game.get('title')
-                if not title:
-                    return None
                 
                 # Gameインスタンスを辞書で作成
                 game_data = {
                     'epic_namespace': epic_namespace,
                     'title': title,
-                    'normalized_title': self._normalize_title(title),
+                    'normalized_title': normalized_title,
                     'description': epic_game.get('description') or f"Epic Games Store: {epic_namespace}",
                     'developer': epic_game.get('developer') or '不明',
                     'publisher': epic_game.get('publisher') or '不明',
@@ -401,7 +510,8 @@ class GameRepository:
                 game = GameModel(**game_data)
                 return self.save(game)
                 
-        except Exception:
+        except Exception as e:
+            print(f"Epicゲーム保存エラー: {e}")
             return None
     
     def _normalize_title(self, title: str) -> str:

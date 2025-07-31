@@ -23,7 +23,39 @@
                 <div class="p-4">
                     <h5 class="text-white font-semibold text-lg mb-2 line-clamp-2">{{ game.title }}</h5>
                     
-                    {% if game.lowest_price %}
+                    <!-- 価格情報 -->
+                    {% if game.steam_appid and game.epic_namespace and game.prices %}
+                    <!-- 複数プラットフォーム価格表示 -->
+                    <div class="mb-3">
+                        <div class="text-xs text-gray-400 mb-2">価格比較</div>
+                        <div class="space-y-2">
+                            {% if game.prices.steam %}
+                            <div class="flex items-center justify-between">
+                                <span class="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">Steam</span>
+                                <div class="text-right">
+                                    <span class="text-lg font-bold text-green-400">¥{{ "{:,}".format(game.prices.steam.current|int) }}</span>
+                                    {% if game.prices.steam.discount > 0 %}
+                                    <div class="text-xs text-red-400">{{ game.prices.steam.discount }}% OFF</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if game.prices.epic %}
+                            <div class="flex items-center justify-between">
+                                <span class="bg-purple-600 text-white px-2 py-1 rounded text-xs font-medium">Epic</span>
+                                <div class="text-right">
+                                    <span class="text-lg font-bold text-green-400">¥{{ "{:,}".format(game.prices.epic.current|int) }}</span>
+                                    {% if game.prices.epic.discount > 0 %}
+                                    <div class="text-xs text-red-400">{{ game.prices.epic.discount }}% OFF</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% elif game.lowest_price %}
+                    <!-- 単一プラットフォーム価格表示 -->
                     <div class="mb-3">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-2xl font-bold text-green-400">¥{{ "{:,}".format(game.lowest_price.price|int) }}</span>
@@ -34,6 +66,17 @@
                             ¥{{ "{:,}".format(game.lowest_price.original_price|int) }}
                         </small>
                         {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- 複数プラットフォーム対応表示 -->
+                    {% if game.steam_appid and game.epic_namespace %}
+                    <div class="mb-3 p-2 bg-gray-700 rounded">
+                        <div class="text-xs text-gray-400 mb-1">複数プラットフォーム対応</div>
+                        <div class="flex space-x-2 text-xs">
+                            <span class="bg-blue-600 text-white px-2 py-1 rounded">Steam</span>
+                            <span class="bg-purple-600 text-white px-2 py-1 rounded">Epic</span>
+                        </div>
                     </div>
                     {% endif %}
 
@@ -97,13 +140,49 @@
             {% endif %}
         </div>
         <div class="flex-shrink-0 text-center">
-            {% if game.lowest_price %}
+            {% if game.steam_appid and game.epic_namespace and game.prices %}
+            <!-- 複数プラットフォーム価格表示 -->
+            <div class="mb-2">
+                <div class="text-xs text-gray-400 mb-1">価格比較</div>
+                {% if game.prices.steam %}
+                <div class="mb-1">
+                    <div class="text-lg font-bold text-green-400">¥{{ "{:,}".format(game.prices.steam.current|int) }}</div>
+                    <span class="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">Steam</span>
+                    {% if game.prices.steam.discount > 0 %}
+                    <div class="bg-red-600 text-white text-xs px-2 py-1 rounded mt-1">{{ game.prices.steam.discount }}% OFF</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {% if game.prices.epic %}
+                <div class="mb-1">
+                    <div class="text-lg font-bold text-green-400">¥{{ "{:,}".format(game.prices.epic.current|int) }}</div>
+                    <span class="bg-purple-600 text-white px-2 py-1 rounded text-xs font-medium">Epic</span>
+                    {% if game.prices.epic.discount > 0 %}
+                    <div class="bg-red-600 text-white text-xs px-2 py-1 rounded mt-1">{{ game.prices.epic.discount }}% OFF</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% elif game.lowest_price %}
+            <!-- 単一プラットフォーム価格表示 -->
             <div class="mb-2">
                 <div class="text-2xl font-bold text-green-400">¥{{ "{:,}".format(game.lowest_price.price|int) }}</div>
                 <span class="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">{{ game.lowest_price.store|upper }}</span>
                 {% if game.lowest_price.discount_percent and game.lowest_price.discount_percent > 0 %}
                 <div class="bg-red-600 text-white text-xs px-2 py-1 rounded mt-1">{{ game.lowest_price.discount_percent }}% OFF</div>
                 {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- 複数プラットフォーム表示 -->
+            {% if game.steam_appid and game.epic_namespace %}
+            <div class="mb-2">
+                <div class="text-xs text-gray-400 mb-1">複数プラットフォーム</div>
+                <div class="flex space-x-1 text-xs">
+                    <span class="bg-blue-600 text-white px-1 py-0.5 rounded">Steam</span>
+                    <span class="bg-purple-600 text-white px-1 py-0.5 rounded">Epic</span>
+                </div>
             </div>
             {% endif %}
         </div>
@@ -149,7 +228,26 @@
                     <h6 class="text-white font-semibold text-base mb-2 line-clamp-2">{{ game.title }}</h6>
                     
                     <!-- 価格情報 -->
-                    {% if game.lowest_price %}
+                    {% if game.steam_appid and game.epic_namespace and game.prices %}
+                    <!-- 複数プラットフォーム価格表示 -->
+                    <div class="mb-2">
+                        <div class="text-xs text-gray-400 mb-1">価格比較</div>
+                        {% if game.prices.steam %}
+                        <div class="mb-1">
+                            <span class="text-green-400 font-bold text-sm">¥{{ "{:,}".format(game.prices.steam.current|int) }}</span>
+                            <span class="bg-blue-600 text-white px-1 py-0.5 rounded text-xs ml-1">Steam</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if game.prices.epic %}
+                        <div class="mb-1">
+                            <span class="text-green-400 font-bold text-sm">¥{{ "{:,}".format(game.prices.epic.current|int) }}</span>
+                            <span class="bg-purple-600 text-white px-1 py-0.5 rounded text-xs ml-1">Epic</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% elif game.lowest_price %}
+                    <!-- 単一プラットフォーム価格表示 -->
                     <div class="mb-2">
                         <span class="text-green-400 font-bold text-lg">¥{{ "{:,}".format(game.lowest_price.price|int) }}</span>
                         {% if game.lowest_price.original_price > game.lowest_price.price %}
@@ -157,6 +255,16 @@
                             ¥{{ "{:,}".format(game.lowest_price.original_price|int) }}
                         </small>
                         {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- 複数プラットフォーム表示 -->
+                    {% if game.steam_appid and game.epic_namespace %}
+                    <div class="mb-2">
+                        <div class="flex space-x-1 text-xs">
+                            <span class="bg-blue-600 text-white px-1 py-0.5 rounded">Steam</span>
+                            <span class="bg-purple-600 text-white px-1 py-0.5 rounded">Epic</span>
+                        </div>
                     </div>
                     {% endif %}
                 </div>

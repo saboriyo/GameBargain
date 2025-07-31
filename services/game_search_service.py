@@ -12,7 +12,7 @@ from flask import current_app
 from models.game import Game as GameModel
 from repositories.game_repository import GameRepository
 from services.steam_service import SteamAPIService
-from services.epic_service import EpicGamesStoreAPI
+from services.epic_service import EpicGamesStoreService
 
 
 class GameSearchService:
@@ -20,7 +20,7 @@ class GameSearchService:
     
     def __init__(self, game_repository: Optional[GameRepository] = None, 
                  steam_service: Optional[SteamAPIService] = None,
-                 epic_service: Optional[EpicGamesStoreAPI] = None):
+                 epic_service: Optional[EpicGamesStoreService] = None):
         """
         初期化
         
@@ -31,7 +31,7 @@ class GameSearchService:
         """
         self.game_repository = game_repository or GameRepository()
         self.steam_service = steam_service or SteamAPIService()
-        self.epic_service = epic_service or EpicGamesStoreAPI()
+        self.epic_service = epic_service or EpicGamesStoreService()
     
     def search_games(self, query: Optional[str] = None, filters: Optional[Dict[str, Any]] = None, 
                     page: int = 1, per_page: int = 20) -> Dict[str, Any]:

@@ -29,8 +29,8 @@ class PriceRepository:
     def epic_service(self):
         """Epic Games Store APIサービスを遅延初期化"""
         if self._epic_service is None:
-            from services.epic_service import EpicGamesStoreAPI
-            self._epic_service = EpicGamesStoreAPI()
+            from services.epic_service import EpicGamesStoreService
+            self._epic_service = EpicGamesStoreService()
         return self._epic_service
 
     def is_price_data_stale(self, price: Price, max_age_hours: int = 1) -> bool:
