@@ -11,8 +11,8 @@ from sqlalchemy import desc, func, and_
 from sqlalchemy.orm import joinedload
 
 from services import BaseService, ValidationError, BusinessLogicError, create_pagination_info
-from models import db
 from models import User, Favorite, Notification, Game, Price
+from repositories.user_repository import UserRepository
 
 
 class UserService(BaseService):
@@ -33,22 +33,13 @@ class UserService(BaseService):
     def __init__(self):
         """ユーザーサービスの初期化"""
         super().__init__()
-        # 標準SQLAlchemyパターンのモデルを直接使用
-        self.User = User
-        self.Favorite = Favorite
+        # リポジトリパターンの使用
+        self.user_repository = UserRepository()
+        # 標準SQLAlchemyパターンのモデルを直接使用（通知関連はまだリポジトリがないため）
         self.Notification = Notification
-        self.Game = Game
         self.Price = Price
     
-    def initialize_models(self, db):
-        """
-        モデルクラスの初期化（後方互換性のため保持）
-        
-        Args:
-            db: データベースオブジェクト
-        """
-        # 新しいパターンでは初期化不要
-        pass
+
     
     def get_user_profile(self, user_id: int) -> Dict[str, Any]:
         """
@@ -61,10 +52,13 @@ class UserService(BaseService):
             Dict[str, Any]: ユーザープロフィール情報
         """
         try:
-            self.initialize_models(db)
-            user = self.User.query.get(user_id)
+            user = self.user_repository.get_by_id(user_id)
+            if not user:
+                raise ValidationError("ユーザーが見つかりません", "user_id")
+            
             # お気に入り数の取得
-            favorites_count = self.Favorite.query.filter_by(user_id=user_id).count()
+            favorites = self.user_repository.get_user_favorites(user_id)
+            favorites_count = len(favorites)
             
             # アラート数の取得
             alerts_count = self.Notification.query.filter_by(
@@ -109,15 +103,14 @@ class UserService(BaseService):
             Dict[str, Any]: お気に入り一覧とページネーション情報
         """
         try:
-            # お気に入り一覧の取得
-            favorites_query = (self.Favorite.query
-                             .filter_by(user_id=user_id)
-                             .options(joinedload(self.Favorite.game))
-                             .order_by(desc(self.Favorite.added_at)))
+            # お気に入り一覧の取得（リポジトリから取得）
+            all_favorites = self.user_repository.get_user_favorites(user_id)
             
-            total = favorites_query.count()
-            offset = (page - 1) * per_page
-            favorites = favorites_query.offset(offset).limit(per_page).all()
+            # ページネーション処理
+            total = len(all_favorites)
+            start_index = (page - 1) * per_page
+            end_index = start_index + per_page
+            favorites = all_favorites[start_index:end_index]
             
             # 各お気に入りゲームの最新価格情報を取得
             favorites_with_prices = self._add_price_info_to_favorites(favorites)
@@ -144,30 +137,23 @@ class UserService(BaseService):
             Dict[str, Any]: 処理結果
         """
         try:
-            # ゲームの存在確認
-            game = self.Game.query.get(game_id)
+            # ゲームの存在確認（GameRepositoryを使用することを推奨）
+            from repositories.game_repository import GameRepository
+            game_repository = GameRepository()
+            game = game_repository.get_by_id(game_id)
             if not game:
                 raise ValidationError("指定されたゲームが見つかりません", "game_id")
             
             # 既存のお気に入りをチェック
-            existing_favorite = self.Favorite.query.filter_by(
-                user_id=user_id,
-                game_id=game_id
-            ).first()
-            
-            if existing_favorite:
+            if self.user_repository.is_game_favorited(user_id, game_id):
                 raise BusinessLogicError("このゲームは既にお気に入りに追加されています")
             
-            # お気に入りの作成
-            favorite = self.Favorite(
-                user_id=user_id,
-                game_id=game_id,
-                added_at=datetime.now(timezone.utc)
-            )
+            # お気に入りの作成（リポジトリを使用）
+            favorite = self.user_repository.add_favorite(user_id, game_id)
+            if not favorite:
+                raise BusinessLogicError("お気に入りの追加に失敗しました")
             
-            from models import db
-            db.session.add(favorite)
-            db.session.commit()
+            self.user_repository.commit()
             
             return self._create_success_response(
                 data={'favorite_id': favorite.id},
@@ -177,8 +163,7 @@ class UserService(BaseService):
         except (ValidationError, BusinessLogicError):
             raise
         except Exception as e:
-            from models import db
-            db.session.rollback()
+            self.user_repository.rollback()
             return self._handle_error(e, "お気に入り追加")
     
     def remove_favorite(self, user_id: int, game_id: int) -> Dict[str, Any]:
@@ -193,17 +178,13 @@ class UserService(BaseService):
             Dict[str, Any]: 処理結果
         """
         try:
-            favorite = self.Favorite.query.filter_by(
-                user_id=user_id,
-                game_id=game_id
-            ).first()
+            # お気に入りの削除（リポジトリを使用）
+            success = self.user_repository.remove_favorite(user_id, game_id)
             
-            if not favorite:
+            if not success:
                 raise ValidationError("お気に入りが見つかりません")
             
-            from models import db
-            db.session.delete(favorite)
-            db.session.commit()
+            self.user_repository.commit()
             
             return self._create_success_response(
                 message="お気に入りから削除しました"
@@ -212,8 +193,7 @@ class UserService(BaseService):
         except ValidationError:
             raise
         except Exception as e:
-            from models import db
-            db.session.rollback()
+            self.user_repository.rollback()
             return self._handle_error(e, "お気に入り削除")
     
     def get_user_notifications(
@@ -317,12 +297,10 @@ class UserService(BaseService):
                     game_id=game_id,
                     priority=2  # 通常の優先度
                 )
-                from models import db
                 db.session.add(alert)
                 message = "価格アラートを設定しました"
                 alert_id = getattr(alert, 'id', None)
             
-            from models import db
             db.session.commit()
             
             return self._create_success_response(
@@ -333,7 +311,6 @@ class UserService(BaseService):
         except (ValidationError, BusinessLogicError):
             raise
         except Exception as e:
-            from models import db
             db.session.rollback()
             return self._handle_error(e, "価格アラート作成")
     
@@ -358,7 +335,6 @@ class UserService(BaseService):
             if not alert:
                 raise ValidationError("価格アラートが見つかりません")
             
-            from models import db
             db.session.delete(alert)
             db.session.commit()
             
@@ -369,7 +345,6 @@ class UserService(BaseService):
         except ValidationError:
             raise
         except Exception as e:
-            from models import db
             db.session.rollback()
             return self._handle_error(e, "価格アラート削除")
     
@@ -389,7 +364,7 @@ class UserService(BaseService):
             Dict[str, Any]: 処理結果
         """
         try:
-            user = self.User.query.get(user_id)
+            user = self.user_repository.get_by_id(user_id)
             if not user:
                 raise ValidationError("ユーザーが見つかりません", "user_id")
             
@@ -405,8 +380,7 @@ class UserService(BaseService):
             
             user.updated_at = datetime.now(timezone.utc)
             
-            from models import db
-            db.session.commit()
+            self.user_repository.commit()
             
             return self._create_success_response(
                 message="通知設定を更新しました"
@@ -415,8 +389,7 @@ class UserService(BaseService):
         except ValidationError:
             raise
         except Exception as e:
-            from models import db
-            db.session.rollback()
+            self.user_repository.rollback()
             return self._handle_error(e, "通知設定更新")
     
     def update_profile_settings(
@@ -435,7 +408,7 @@ class UserService(BaseService):
             Dict[str, Any]: 処理結果
         """
         try:
-            user = self.User.query.get(user_id)
+            user = self.user_repository.get_by_id(user_id)
             if not user:
                 raise ValidationError("ユーザーが見つかりません", "user_id")
             
@@ -445,8 +418,7 @@ class UserService(BaseService):
             
             user.updated_at = datetime.now(timezone.utc)
             
-            from models import db
-            db.session.commit()
+            self.user_repository.commit()
             
             return self._create_success_response(
                 message="プロフィール設定を更新しました"
@@ -455,8 +427,7 @@ class UserService(BaseService):
         except ValidationError:
             raise
         except Exception as e:
-            from models import db
-            db.session.rollback()
+            self.user_repository.rollback()
             return self._handle_error(e, "プロフィール設定更新")
     
     def get_user_activity(
@@ -479,16 +450,11 @@ class UserService(BaseService):
         try:
             start_date = datetime.now(timezone.utc) - timedelta(days=days)
             
-            # お気に入り追加のアクティビティ
-            favorites = (self.Favorite.query
-                        .filter(
-                            self.Favorite.user_id == user_id,
-                            self.Favorite.added_at >= start_date
-                        )
-                        .options(joinedload(self.Favorite.game))
-                        .order_by(desc(self.Favorite.added_at))
-                        .limit(limit // 2)
-                        .all())
+            # お気に入り追加のアクティビティ（リポジトリから取得）
+            all_favorites = self.user_repository.get_user_favorites(user_id)
+            # 日付でフィルタリング（リポジトリに日付フィルタ機能を追加することを推奨）
+            recent_favorites = [f for f in all_favorites if hasattr(f, 'added_at') and f.added_at >= start_date]
+            favorites = sorted(recent_favorites, key=lambda x: x.added_at, reverse=True)[:limit // 2]
             
             # 価格アラート作成のアクティビティ
             alerts = (self.Notification.query
@@ -508,7 +474,7 @@ class UserService(BaseService):
             for favorite in favorites:
                 activities.append({
                     'type': 'favorite_added',
-                    'game': self._serialize_game_basic(favorite.game),
+                    'game': self._serialize_game_basic(favorite),
                     'created_at': favorite.added_at.isoformat()
                 })
             
@@ -547,13 +513,13 @@ class UserService(BaseService):
             'deals_found': 0       # 発見したセール数
         }
         
-        # お気に入りゲームの価格変動から節約金額を計算
-        favorites = self.Favorite.query.filter_by(user_id=user_id).all()
+        # お気に入りゲームの価格変動から節約金額を計算（リポジトリから取得）
+        favorites = self.user_repository.get_user_favorites(user_id)
         
         for favorite in favorites:
             # 価格履歴から節約金額を算出
             prices = (self.Price.query
-                     .filter_by(game_id=favorite.game_id)
+                     .filter_by(game_id=favorite.id)
                      .order_by(self.Price.updated_at)
                      .all())
             

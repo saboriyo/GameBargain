@@ -10,6 +10,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlencode
 import requests
 from typing import Optional, Dict, Any
+from datetime import datetime, timedelta, timezone
 
 # ブループリントの作成
 auth_bp = Blueprint('auth', __name__)
@@ -218,50 +219,62 @@ def handle_discord_user(user_info: Dict[str, Any], token_data: Dict[str, Any]):
         User: ユーザーインスタンス、失敗時はNone
     """
     try:
-        # TODO: 実際のデータベース操作を実装
-        # ここではダミーユーザーを返す
-        from models.user import create_user_model
-        from models import User
-        from app import db
+        from models import User, db
+        from repositories.user_repository import UserRepository
         
+        # リポジトリを使用
+        user_repository = UserRepository()
         
         # Discord IDでユーザーを検索
         discord_id = user_info.get('id')
-        user = User.query.filter_by(discord_id=discord_id).first()
+        user = user_repository.get_by_discord_id(discord_id)
         
         if not user:
             # 新規ユーザー作成
             username = user_info.get('username', '')
             if discord_id and username:
+                # トークン有効期限の設定
+                expires_in = token_data.get('expires_in', 3600)
+                token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+                
                 user = User(
                     discord_id=str(discord_id),
-                    username=username
+                    username=username,
+                    discriminator=user_info.get('discriminator'),
+                    email=user_info.get('email'),
+                    avatar_url=get_discord_avatar_url(user_info),
+                    access_token=token_data.get('access_token'),
+                    refresh_token=token_data.get('refresh_token'),
+                    token_expires_at=token_expires_at
                 )
-                db.session.add(user)
-        
-        # ユーザー情報の更新（setattrを使用）
-        if user:
-            setattr(user, 'username', user_info.get('username', ''))
-            setattr(user, 'discriminator', user_info.get('discriminator'))
-            setattr(user, 'email', user_info.get('email'))
-            setattr(user, 'avatar_url', get_discord_avatar_url(user_info))
-            setattr(user, 'access_token', token_data.get('access_token'))
-            setattr(user, 'refresh_token', token_data.get('refresh_token'))
+                
+                user_repository.save(user)
+        else:
+            # 既存ユーザーの情報更新
+            user_repository.update(user,
+                username=user_info.get('username', ''),
+                discriminator=user_info.get('discriminator'),
+                email=user_info.get('email'),
+                avatar_url=get_discord_avatar_url(user_info),
+                access_token=token_data.get('access_token'),
+                refresh_token=token_data.get('refresh_token')
+            )
             
             # トークン有効期限の設定
-            from datetime import datetime, timedelta, timezone
             expires_in = token_data.get('expires_in', 3600)
-            setattr(user, 'token_expires_at', datetime.now(timezone.utc) + timedelta(seconds=expires_in))
+            user.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
             
-            user.update_last_login()
+            # 最終ログイン時刻の更新
+            if hasattr(user, 'update_last_login'):
+                user.update_last_login()
         
-        db.session.commit()
+        user_repository.commit()
         return user
         
     except Exception as e:
         current_app.logger.error(f"Discordユーザー処理エラー: {e}")
-        if 'db' in locals():
-            db.session.rollback()
+        if 'user_repository' in locals():
+            user_repository.rollback()
         return None
 
 

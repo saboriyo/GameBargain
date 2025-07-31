@@ -55,12 +55,19 @@ class User(UserMixin, db.Model):
         コンストラクタ
         
         Args:
+            discord_id: Discord ID
+            username: ユーザー名
             **kwargs: ユーザー情報のキーワード引数
         """
         super().__init__(**kwargs)
         
         self.discord_id = discord_id
         self.username = username
+        
+        # kwargsから追加の属性を設定
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
     
     # リレーションシップ（型チェック時のみ型注釈）
     if TYPE_CHECKING:

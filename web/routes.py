@@ -33,46 +33,68 @@ def index():
     try:
         # GameRepositoryを使用してデータ取得
         game_repository = GameRepository()
+        price_repository = PriceRepository()
         
         # データベースから注目ゲームを取得
         featured_games_db = game_repository.get_recent_games(6)
+        current_app.logger.info(f"データベースから取得したゲーム数: {len(featured_games_db)}件")
         
         # データベースに十分なゲームがない場合、Steam APIから最近のゲームを取得
         if len(featured_games_db) < 3:
             current_app.logger.info("データベースにゲームが少ないため、Steam APIから最近のゲームを取得中...")
-            steam_service = SteamAPIService()
-            recent_games = steam_service.get_recent_games(10)
-            
-            # Steam APIの結果をデータベースに保存（リポジトリ層を使用）
-            if recent_games:
-                game_repository.save_steam_games_from_api(recent_games)
-            
-            current_app.logger.info(f"Steam APIから取得したゲーム数: {len(recent_games)}件")
-            
-            # 再度データベースから取得
-            featured_games_db = game_repository.get_recent_games(6)
-            current_app.logger.info(f"最終的な注目ゲーム数: {len(featured_games_db)}件")
+            try:
+                steam_service = SteamAPIService()
+                recent_games = steam_service.get_recent_games(10)
+                
+                # Steam APIの結果をデータベースに保存（リポジトリ層を使用）
+                if recent_games:
+                    game_repository.save_steam_games_from_api(recent_games)
+                
+                current_app.logger.info(f"Steam APIから取得したゲーム数: {len(recent_games)}件")
+                
+                # 再度データベースから取得
+                featured_games_db = game_repository.get_recent_games(6)
+                current_app.logger.info(f"最終的な注目ゲーム数: {len(featured_games_db)}件")
+            except Exception as steam_error:
+                current_app.logger.error(f"Steam API取得エラー: {steam_error}")
+                # Steam APIが失敗しても、既存のデータで続行
         
         # セール中のゲームを取得（リポジトリ層に追加予定、現在は空のリスト）
         sale_games_db = []
         
-        # レスポンス用に整形
-        price_repository = PriceRepository()
-        featured_games = [game_repository.format_game_for_web_template(game, price_repository) for game in featured_games_db]
-        sale_games = [game_repository.format_game_for_web_template(game, price_repository) for game in sale_games_db]
+        # レスポンス用に整形（エラーハンドリング付き）
+        featured_games = []
+        for game in featured_games_db:
+            try:
+                formatted_game = game_repository.format_game_for_web_template(game, price_repository)
+                featured_games.append(formatted_game)
+            except Exception as format_error:
+                current_app.logger.error(f"ゲーム整形エラー (ID: {game.id}): {format_error}")
+                # エラーが発生したゲームはスキップ
+                continue
+        
+        sale_games = []
+        for game in sale_games_db:
+            try:
+                formatted_game = game_repository.format_game_for_web_template(game, price_repository)
+                sale_games.append(formatted_game)
+            except Exception as format_error:
+                current_app.logger.error(f"セールゲーム整形エラー (ID: {game.id}): {format_error}")
+                continue
         
         current_app.logger.info(f"トップページ表示: 注目ゲーム={len(featured_games)}件, セール={len(sale_games)}件")
         
         return render_template('index.html', 
-                             featured_games=featured_games,
+                             recent_games=featured_games,
                              sale_games=sale_games,
                              page_title='ホーム')
                              
     except Exception as e:
         current_app.logger.error(f"トップページ取得エラー: {e}")
+        current_app.logger.exception("詳細なエラー情報:")
         # エラー時はサンプルデータで表示
         return render_template('index.html', 
-                             featured_games=[],
+                             recent_games=[],
                              sale_games=[],
                              page_title='ホーム')
 
@@ -477,7 +499,8 @@ def inject_template_vars():
     return {
         'current_year': datetime.now().year,
         'app_name': 'GameBargain',
-        'app_version': '1.0.0'
+        'app_version': '1.0.0',
+        'current_user': current_user
     }
 
 

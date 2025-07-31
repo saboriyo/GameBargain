@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components.html" import game_card_grid, game_card_list, game_card_simple %}
 
 {% block title %}
 {% if query %}
@@ -9,135 +10,139 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- 検索フォーム -->
-    <div class="search-header mb-4">
-        <div class="row align-items-center">
-            <div class="col-md-8">
+    <div class="mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+            <div class="md:col-span-3">
                 <form method="GET" action="{{ url_for('main.search') }}" class="search-form">
-                    <div class="input-group input-group-lg">
+                    <div class="flex">
                         <input type="search" 
-                               class="form-control" 
+                               class="flex-1 bg-gray-700 text-white placeholder-gray-400 px-4 py-3 rounded-l-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                                name="q" 
                                value="{{ query or '' }}" 
                                placeholder="ゲームタイトルで検索..."
-                               autocomplete="off">
-                        <button class="btn btn-primary" type="submit">
-                            <i class="bi bi-search"></i> 検索
+                               autocomplete="off"
+                               style="-webkit-appearance: none; -moz-appearance: none; appearance: none;">
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-r-lg text-lg transition-colors duration-200 flex items-center" type="submit">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            検索
                         </button>
                     </div>
                 </form>
             </div>
-            <div class="col-md-4">
+            <div class="md:col-span-1">
                 <!-- フィルターボタン -->
-                <button class="btn btn-outline-secondary" 
+                <button class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white px-4 py-3 rounded-lg transition-colors duration-200 flex items-center justify-center" 
                         type="button" 
-                        data-bs-toggle="collapse" 
-                        data-bs-target="#searchFilters">
-                    <i class="bi bi-funnel me-2"></i>フィルター
+                        onclick="document.getElementById('searchFilters').classList.toggle('hidden')">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z"/>
+                    </svg>
+                    フィルター
                 </button>
             </div>
         </div>
     </div>
 
     <!-- 検索フィルター -->
-    <div class="collapse {{ 'show' if has_filters else '' }}" id="searchFilters">
-        <div class="card mb-4">
-            <div class="card-body">
-                <form method="GET" action="{{ url_for('main.search') }}" id="filterForm">
-                    <input type="hidden" name="q" value="{{ query or '' }}">
-                    
-                    <div class="row g-3">
-                        <!-- 価格範囲 -->
-                        <div class="col-md-3">
-                            <label class="form-label">価格範囲</label>
-                            <div class="row g-1">
-                                <div class="col-6">
-                                    <input type="number" 
-                                           class="form-control form-control-sm" 
-                                           name="min_price" 
-                                           value="{{ filters.min_price or '' }}" 
-                                           placeholder="最小価格">
-                                </div>
-                                <div class="col-6">
-                                    <input type="number" 
-                                           class="form-control form-control-sm" 
-                                           name="max_price" 
-                                           value="{{ filters.max_price or '' }}" 
-                                           placeholder="最大価格">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ジャンル -->
-                        <div class="col-md-3">
-                            <label for="genre" class="form-label">ジャンル</label>
-                            <select class="form-select form-select-sm" name="genre" id="genre">
-                                <option value="">すべて</option>
-                                <option value="action" {{ 'selected' if filters.genre == 'action' else '' }}>アクション</option>
-                                <option value="rpg" {{ 'selected' if filters.genre == 'rpg' else '' }}>RPG</option>
-                                <option value="strategy" {{ 'selected' if filters.genre == 'strategy' else '' }}>ストラテジー</option>
-                                <option value="simulation" {{ 'selected' if filters.genre == 'simulation' else '' }}>シミュレーション</option>
-                                <option value="sports" {{ 'selected' if filters.genre == 'sports' else '' }}>スポーツ</option>
-                                <option value="racing" {{ 'selected' if filters.genre == 'racing' else '' }}>レーシング</option>
-                                <option value="puzzle" {{ 'selected' if filters.genre == 'puzzle' else '' }}>パズル</option>
-                                <option value="adventure" {{ 'selected' if filters.genre == 'adventure' else '' }}>アドベンチャー</option>
-                            </select>
-                        </div>
-
-                        <!-- プラットフォーム -->
-                        <div class="col-md-3">
-                            <label for="platform" class="form-label">プラットフォーム</label>
-                            <select class="form-select form-select-sm" name="platform" id="platform">
-                                <option value="">すべて</option>
-                                <option value="windows" {{ 'selected' if filters.platform == 'windows' else '' }}>Windows</option>
-                                <option value="mac" {{ 'selected' if filters.platform == 'mac' else '' }}>Mac</option>
-                                <option value="linux" {{ 'selected' if filters.platform == 'linux' else '' }}>Linux</option>
-                                <option value="steam_deck" {{ 'selected' if filters.platform == 'steam_deck' else '' }}>Steam Deck</option>
-                            </select>
-                        </div>
-
-                        <!-- ソート順 -->
-                        <div class="col-md-3">
-                            <label for="sort" class="form-label">並び順</label>
-                            <select class="form-select form-select-sm" name="sort" id="sort">
-                                <option value="relevance" {{ 'selected' if filters.sort == 'relevance' else '' }}>関連度順</option>
-                                <option value="price_asc" {{ 'selected' if filters.sort == 'price_asc' else '' }}>価格安い順</option>
-                                <option value="price_desc" {{ 'selected' if filters.sort == 'price_desc' else '' }}>価格高い順</option>
-                                <option value="release_date" {{ 'selected' if filters.sort == 'release_date' else '' }}>リリース日順</option>
-                                <option value="title" {{ 'selected' if filters.sort == 'title' else '' }}>タイトル順</option>
-                            </select>
+    <div class="{{ 'hidden' if not has_filters else '' }} mb-8" id="searchFilters">
+        <div class="bg-gray-800 rounded-lg p-6">
+            <form method="GET" action="{{ url_for('main.search') }}" id="filterForm">
+                <input type="hidden" name="q" value="{{ query or '' }}">
+                
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <!-- 価格範囲 -->
+                    <div>
+                        <label class="block text-gray-300 font-medium mb-2">価格範囲</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" 
+                                   class="bg-gray-700 text-white placeholder-gray-400 px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   name="min_price" 
+                                   value="{{ filters.min_price or '' }}" 
+                                   placeholder="最小価格">
+                            <input type="number" 
+                                   class="bg-gray-700 text-white placeholder-gray-400 px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   name="max_price" 
+                                   value="{{ filters.max_price or '' }}" 
+                                   placeholder="最大価格">
                         </div>
                     </div>
 
-                    <div class="row mt-3">
-                        <div class="col">
-                            <button type="submit" class="btn btn-primary btn-sm me-2">
-                                <i class="bi bi-funnel me-1"></i>フィルター適用
-                            </button>
-                            <a href="{{ url_for('main.search') }}" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-x-circle me-1"></i>フィルタークリア
-                            </a>
-                        </div>
+                    <!-- ジャンル -->
+                    <div>
+                        <label for="genre" class="block text-gray-300 font-medium mb-2">ジャンル</label>
+                        <select class="w-full bg-gray-700 text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" name="genre" id="genre">
+                            <option value="">すべて</option>
+                            <option value="action" {{ 'selected' if filters.genre == 'action' else '' }}>アクション</option>
+                            <option value="rpg" {{ 'selected' if filters.genre == 'rpg' else '' }}>RPG</option>
+                            <option value="strategy" {{ 'selected' if filters.genre == 'strategy' else '' }}>ストラテジー</option>
+                            <option value="simulation" {{ 'selected' if filters.genre == 'simulation' else '' }}>シミュレーション</option>
+                            <option value="sports" {{ 'selected' if filters.genre == 'sports' else '' }}>スポーツ</option>
+                            <option value="racing" {{ 'selected' if filters.genre == 'racing' else '' }}>レーシング</option>
+                            <option value="puzzle" {{ 'selected' if filters.genre == 'puzzle' else '' }}>パズル</option>
+                            <option value="adventure" {{ 'selected' if filters.genre == 'adventure' else '' }}>アドベンチャー</option>
+                        </select>
                     </div>
-                </form>
-            </div>
+
+                    <!-- プラットフォーム -->
+                    <div>
+                        <label for="platform" class="block text-gray-300 font-medium mb-2">プラットフォーム</label>
+                        <select class="w-full bg-gray-700 text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" name="platform" id="platform">
+                            <option value="">すべて</option>
+                            <option value="windows" {{ 'selected' if filters.platform == 'windows' else '' }}>Windows</option>
+                            <option value="mac" {{ 'selected' if filters.platform == 'mac' else '' }}>Mac</option>
+                            <option value="linux" {{ 'selected' if filters.platform == 'linux' else '' }}>Linux</option>
+                            <option value="steam_deck" {{ 'selected' if filters.platform == 'steam_deck' else '' }}>Steam Deck</option>
+                        </select>
+                    </div>
+
+                    <!-- ソート順 -->
+                    <div>
+                        <label for="sort" class="block text-gray-300 font-medium mb-2">並び順</label>
+                        <select class="w-full bg-gray-700 text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" name="sort" id="sort">
+                            <option value="relevance" {{ 'selected' if filters.sort == 'relevance' else '' }}>関連度順</option>
+                            <option value="price_asc" {{ 'selected' if filters.sort == 'price_asc' else '' }}>価格安い順</option>
+                            <option value="price_desc" {{ 'selected' if filters.sort == 'price_desc' else '' }}>価格高い順</option>
+                            <option value="release_date" {{ 'selected' if filters.sort == 'release_date' else '' }}>リリース日順</option>
+                            <option value="title" {{ 'selected' if filters.sort == 'title' else '' }}>タイトル順</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-3 mt-6">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z"/>
+                        </svg>
+                        フィルター適用
+                    </button>
+                    <a href="{{ url_for('main.search') }}" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        フィルタークリア
+                    </a>
+                </div>
+            </form>
         </div>
     </div>
 
     <!-- 検索結果ヘッダー -->
     {% if query or has_filters %}
-    <div class="search-results-header mb-4">
-        <div class="d-flex justify-content-between align-items-center">
+    <div class="mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 {% if query %}
-                <h2>「{{ query }}」の検索結果</h2>
+                <h2 class="text-2xl font-bold text-white">「{{ query }}」の検索結果</h2>
                 {% else %}
-                <h2>検索結果</h2>
+                <h2 class="text-2xl font-bold text-white">検索結果</h2>
                 {% endif %}
                 
                 {% if games %}
-                <p class="text-muted mb-0">
+                <p class="text-gray-400 mt-2">
                     {{ pagination.total }}件中 {{ pagination.start_index }}-{{ pagination.end_index }}件を表示
                     {% if search_time %}
                     （検索時間: {{ "%.3f"|format(search_time) }}秒）
@@ -147,28 +152,34 @@
             </div>
 
             <!-- 表示切替 -->
-            <div class="btn-group" role="group">
-                <input type="radio" class="btn-check" name="view-type" id="grid-view" autocomplete="off" checked>
-                <label class="btn btn-outline-secondary btn-sm" for="grid-view">
-                    <i class="bi bi-grid-3x3-gap"></i>
-                </label>
+            <div class="flex bg-gray-700 rounded-lg p-1">
+                <button type="button" id="grid-view-btn" class="px-3 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                    </svg>
+                </button>
 
-                <input type="radio" class="btn-check" name="view-type" id="list-view" autocomplete="off">
-                <label class="btn btn-outline-secondary btn-sm" for="list-view">
-                    <i class="bi bi-list"></i>
-                </label>
+                <button type="button" id="list-view-btn" class="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-600 transition-colors duration-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                    </svg>
+                </button>
             </div>
         </div>
 
         <!-- アクティブフィルター表示 -->
         {% if active_filters %}
-        <div class="active-filters mt-2">
-            <small class="text-muted">アクティブフィルター:</small>
+        <div class="mt-4">
+            <span class="text-gray-400 text-sm">アクティブフィルター:</span>
             {% for filter_name, filter_value in active_filters.items() %}
-            <span class="badge bg-primary me-1">
+            <span class="inline-flex items-center bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium mr-2 mt-2">
                 {{ filter_name }}: {{ filter_value }}
                 <a href="{{ url_for('main.search', q=query, **dict(filters.items() - [(filter_name, filter_value)])) }}" 
-                   class="text-white ms-1" style="text-decoration: none;">×</a>
+                   class="ml-2 text-white hover:text-gray-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </a>
             </span>
             {% endfor %}
         </div>
@@ -179,195 +190,88 @@
     <!-- 検索結果 -->
     {% if games %}
     <!-- グリッド表示 -->
-    <div id="grid-results" class="search-results grid-view">
-        <div class="row">
+    <div id="grid-results" class="search-results">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
             {% for game in games %}
-            <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
-                <a href="{{ url_for('main.game_detail', game_id=game.id) }}" class="text-decoration-none">
-                    <div class="card h-100 game-card">
-                        <div class="position-relative">
-                            <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
-                                 class="card-img-top game-image" 
-                                 alt="{{ game.title }}"
-                                 loading="lazy">
-                            
-                            <!-- 割引バッジ -->
-                            {% if game.lowest_price and game.lowest_price.discount_percent and game.lowest_price.discount_percent > 0 %}
-                            <div class="discount-badge">
-                                -{{ game.lowest_price.discount_percent }}%
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title">{{ game.title }}</h5>
-                            
-                            {% if game.lowest_price %}
-                            <div class="price-info mb-2">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span class="fs-5 fw-bold text-success">¥{{ "{:,}".format(game.lowest_price.price|int) }}</span>
-                                    <span class="store-badge store-{{ game.lowest_price.store }}">{{ game.lowest_price.store|upper }}</span>
-                                </div>
-                                {% if game.lowest_price.original_price and game.lowest_price.original_price > game.lowest_price.price %}
-                                <small class="text-muted text-decoration-line-through">
-                                    ¥{{ "{:,}".format(game.lowest_price.original_price|int) }}
-                                </small>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-
-                            {% if game.genres %}
-                            <div class="mb-2">
-                                {% for genre in game.genres.split(',')[:2] %}
-                                <span class="badge bg-secondary me-1">{{ genre.strip() }}</span>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-
-                            <p class="card-text flex-grow-1">
-                                {{ game.description[:80] }}{% if game.description|length > 80 %}...{% endif %}
-                            </p>
-
-                            <div class="mt-auto">
-                                <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
-                                   class="btn btn-primary btn-sm w-100">詳細を見る</a>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-                
-                <!-- お気に入りボタンはリンクの外に配置 -->
-                {% if current_user.is_authenticated %}
-                <div class="position-absolute top-0 end-0 m-2">
-                    <button class="btn btn-sm btn-outline-light favorite-btn" 
-                            data-game-id="{{ game.id }}"
-                            data-bs-toggle="tooltip" 
-                            title="お気に入りに追加">
-                        <i class="bi bi-heart"></i>
-                    </button>
-                </div>
-                {% endif %}
-            </div>
+                {{ game_card_grid(game) }}
             {% endfor %}
         </div>
     </div>
 
     <!-- リスト表示 -->
-    <div id="list-results" class="search-results list-view d-none">
-        <div class="list-group">
+    <div id="list-results" class="search-results hidden">
+        <div class="space-y-4">
             {% for game in games %}
-            <div class="list-group-item">
-                <div class="row align-items-center">
-                    <div class="col-md-2">
-                        <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
-                             class="img-fluid rounded" 
-                             alt="{{ game.title }}"
-                             style="max-height: 100px;">
-                    </div>
-                    <div class="col-md-6">
-                        <h5 class="mb-1">{{ game.title }}</h5>
-                        <p class="mb-1 text-muted">{{ game.description[:150] }}...</p>
-                        {% if game.genres %}
-                        <small>
-                            {% for genre in game.genres.split(',')[:3] %}
-                            <span class="badge bg-secondary me-1">{{ genre.strip() }}</span>
-                            {% endfor %}
-                        </small>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-2 text-center">
-                        {% if game.lowest_price %}
-                        <div class="price-info">
-                            <div class="fs-4 fw-bold text-success">¥{{ "{:,}".format(game.lowest_price.price|int) }}</div>
-                            <span class="store-badge store-{{ game.lowest_price.store }}">{{ game.lowest_price.store|upper }}</span>
-                            {% if game.lowest_price.discount_percent and game.lowest_price.discount_percent > 0 %}
-                            <div class="badge bg-danger mt-1">{{ game.lowest_price.discount_percent }}% OFF</div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-2">
-                        <div class="d-grid gap-2">
-                            <a href="{{ url_for('main.game_detail', game_id=game.id) }}" 
-                               class="btn btn-primary btn-sm">詳細を見る</a>
-                            {% if current_user.is_authenticated %}
-                            <button class="btn btn-sm btn-outline-danger favorite-btn" 
-                                    data-game-id="{{ game.id }}">
-                                <i class="bi bi-heart me-1"></i>お気に入り
-                            </button>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
+                {{ game_card_list(game) }}
             {% endfor %}
         </div>
     </div>
 
     <!-- ページネーション -->
     {% if pagination.pages > 1 %}
-    <div class="d-flex justify-content-center mt-4">
-        <nav>
-            <ul class="pagination">
-                {% if pagination.has_prev %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('main.search', page=pagination.prev_num, q=query, **filters) }}">
-                        <i class="bi bi-chevron-left"></i>
-                    </a>
-                </li>
-                {% endif %}
+    <div class="flex justify-center mt-12">
+        <nav class="flex items-center space-x-2">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('main.search', page=pagination.prev_num, q=query, **filters) }}" 
+               class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition-colors duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            {% endif %}
 
-                {% for page_num in pagination.iter_pages() %}
-                    {% if page_num %}
-                        {% if page_num != pagination.page %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.search', page=page_num, q=query, **filters) }}">{{ page_num }}</a>
-                        </li>
-                        {% else %}
-                        <li class="page-item active">
-                            <span class="page-link">{{ page_num }}</span>
-                        </li>
-                        {% endif %}
+            {% for page_num in pagination.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num != pagination.page %}
+                    <a href="{{ url_for('main.search', page=page_num, q=query, **filters) }}" 
+                       class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition-colors duration-200">{{ page_num }}</a>
                     {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link">…</span>
-                    </li>
+                    <span class="bg-blue-600 text-white px-3 py-2 rounded-lg">{{ page_num }}</span>
                     {% endif %}
-                {% endfor %}
-
-                {% if pagination.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('main.search', page=pagination.next_num, q=query, **filters) }}">
-                        <i class="bi bi-chevron-right"></i>
-                    </a>
-                </li>
+                {% else %}
+                <span class="text-gray-400 px-3 py-2">…</span>
                 {% endif %}
-            </ul>
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for('main.search', page=pagination.next_num, q=query, **filters) }}" 
+               class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition-colors duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+            {% endif %}
         </nav>
     </div>
     {% endif %}
 
     {% elif query or has_filters %}
     <!-- 検索結果なし -->
-    <div class="text-center py-5">
-        <i class="bi bi-search display-1 text-muted"></i>
-        <h3 class="mt-3">検索結果が見つかりませんでした</h3>
-        <p class="text-muted">
+    <div class="text-center py-16">
+        <svg class="w-24 h-24 text-gray-600 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <h3 class="text-2xl font-bold text-white mb-4">検索結果が見つかりませんでした</h3>
+        <p class="text-gray-400 mb-8">
             {% if query %}
             「{{ query }}」に一致するゲームが見つかりません。
             {% else %}
             指定した条件に一致するゲームが見つかりません。
             {% endif %}
         </p>
-        <div class="mt-4">
-            <a href="{{ url_for('main.search') }}" class="btn btn-primary me-2">検索条件をリセット</a>
-            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">ホームに戻る</a>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ url_for('main.search') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors duration-200">
+                検索条件をリセット
+            </a>
+            <a href="{{ url_for('main.index') }}" class="bg-gray-600 hover:bg-gray-500 text-white px-6 py-3 rounded-lg transition-colors duration-200">
+                ホームに戻る
+            </a>
         </div>
 
         <!-- 検索のヒント -->
-        <div class="mt-4">
-            <h5>検索のヒント:</h5>
-            <ul class="list-unstyled text-muted">
+        <div class="mt-12">
+            <h5 class="text-lg font-semibold text-white mb-4">検索のヒント:</h5>
+            <ul class="text-gray-400 space-y-2">
                 <li>• より短いキーワードで検索してみてください</li>
                 <li>• スペルを確認してください</li>
                 <li>• 別のキーワードで検索してみてください</li>
@@ -378,41 +282,33 @@
 
     {% else %}
     <!-- 初期状態（検索前） -->
-    <div class="text-center py-5">
-        <i class="bi bi-controller display-1 text-primary"></i>
-        <h2 class="mt-3">お探しのゲームを見つけよう</h2>
-        <p class="text-muted mb-4">数千のゲームから最安値をリアルタイムで比較できます</p>
+    <div class="text-center py-16">
+        <svg class="w-24 h-24 text-blue-400 mx-auto mb-6" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 12a2 2 0 114 0 2 2 0 01-4 0zm6-2a2 2 0 11-4 0 2 2 0 014 0z"/>
+        </svg>
+        <h2 class="text-3xl font-bold text-white mb-4">お探しのゲームを見つけよう</h2>
+        <p class="text-gray-400 mb-8 text-lg">数千のゲームから最安値をリアルタイムで比較できます</p>
         
         <!-- 人気のキーワード -->
-        <div class="popular-keywords">
-            <h5>人気のキーワード:</h5>
-            <div class="d-flex flex-wrap justify-content-center gap-2">
+        <div class="mb-12">
+            <h5 class="text-lg font-semibold text-white mb-4">人気のキーワード:</h5>
+            <div class="flex flex-wrap justify-center gap-3">
                 {% for keyword in popular_keywords %}
                 <a href="{{ url_for('main.search', q=keyword) }}" 
-                   class="btn btn-outline-primary btn-sm">{{ keyword }}</a>
+                   class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors duration-200">
+                    {{ keyword }}
+                </a>
                 {% endfor %}
             </div>
         </div>
 
         <!-- 最近のゲーム -->
         {% if recent_games %}
-        <div class="recent-games mt-5">
-            <h5>最近追加されたゲーム:</h5>
-            <div class="row justify-content-center">
+        <div class="mt-12">
+            <h5 class="text-lg font-semibold text-white mb-6">最近追加されたゲーム:</h5>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
                 {% for game in recent_games[:4] %}
-                <div class="col-sm-6 col-md-3 mb-3">
-                    <a href="{{ url_for('main.game_detail', game_id=game.id) }}" class="text-decoration-none">
-                        <div class="card h-100 game-card">
-                            <img src="{{ game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
-                                class="card-img-top" 
-                                alt="{{ game.title }}"
-                                style="height: 150px; object-fit: cover;">
-                            <div class="card-body text-center">
-                                <h6 class="card-title text-dark">{{ game.title }}</h6>
-                            </div>
-                        </div>
-                    </a>
-                </div>
+                    {{ game_card_simple(game, show_favorite=false) }}
                 {% endfor %}
             </div>
         </div>
@@ -426,33 +322,36 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // 表示切替機能
-    const gridViewBtn = document.getElementById('grid-view');
-    const listViewBtn = document.getElementById('list-view');
+    const gridViewBtn = document.getElementById('grid-view-btn');
+    const listViewBtn = document.getElementById('list-view-btn');
     const gridResults = document.getElementById('grid-results');
     const listResults = document.getElementById('list-results');
-
+    
     if (gridViewBtn && listViewBtn) {
-        gridViewBtn.addEventListener('change', function() {
-            if (this.checked) {
-                gridResults.classList.remove('d-none');
-                listResults.classList.add('d-none');
-                localStorage.setItem('search-view', 'grid');
-            }
+        gridViewBtn.addEventListener('click', function() {
+            gridResults.classList.remove('hidden');
+            listResults.classList.add('hidden');
+            gridViewBtn.classList.add('bg-blue-600', 'text-white');
+            gridViewBtn.classList.remove('text-gray-300', 'hover:bg-gray-600');
+            listViewBtn.classList.remove('bg-blue-600', 'text-white');
+            listViewBtn.classList.add('text-gray-300', 'hover:bg-gray-600');
+            localStorage.setItem('search-view', 'grid');
         });
 
-        listViewBtn.addEventListener('change', function() {
-            if (this.checked) {
-                gridResults.classList.add('d-none');
-                listResults.classList.remove('d-none');
-                localStorage.setItem('search-view', 'list');
-            }
+        listViewBtn.addEventListener('click', function() {
+            gridResults.classList.add('hidden');
+            listResults.classList.remove('hidden');
+            listViewBtn.classList.add('bg-blue-600', 'text-white');
+            listViewBtn.classList.remove('text-gray-300', 'hover:bg-gray-600');
+            gridViewBtn.classList.remove('bg-blue-600', 'text-white');
+            gridViewBtn.classList.add('text-gray-300', 'hover:bg-gray-600');
+            localStorage.setItem('search-view', 'list');
         });
 
         // 保存された表示設定を復元
         const savedView = localStorage.getItem('search-view');
         if (savedView === 'list') {
-            listViewBtn.checked = true;
-            listViewBtn.dispatchEvent(new Event('change'));
+            listViewBtn.click();
         }
     }
 

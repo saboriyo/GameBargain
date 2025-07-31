@@ -343,7 +343,12 @@ class GameRepository:
                 'original_price': game_data.get('original_price') or 0.0,
                 'discount_percent': game_data.get('discount_percent', 0),
                 'is_on_sale': game_data.get('discount_percent', 0) > 0,
-                'lowest_price': game_data.get('current_price') or 0.0,
+                'lowest_price': {
+                    'price': game_data.get('current_price') or 0.0,
+                    'store': 'steam',
+                    'discount_percent': game_data.get('discount_percent', 0),
+                    'original_price': game_data.get('original_price') or 0.0
+                },
                 'lowest_store': 'steam',
                 'prices': game_data.get('prices', {})
             }
@@ -366,7 +371,12 @@ class GameRepository:
             'original_price': 0.0,
             'discount_percent': 0,
             'is_on_sale': False,
-            'lowest_price': 0.0,
+            'lowest_price': {
+                'price': 0.0,
+                'store': 'steam',
+                'discount_percent': 0,
+                'original_price': 0.0
+            },
             'lowest_store': 'steam',
             'prices': {}
         }
@@ -388,7 +398,12 @@ class GameRepository:
                     # 最安値を計算
                     lowest_price_info = min(formatted_prices, key=lambda p: p['price'])
                     formatted_game.update({
-                        'lowest_price': lowest_price_info['price'],
+                        'lowest_price': {
+                            'price': lowest_price_info['price'],
+                            'store': lowest_price_info['store'],
+                            'discount_percent': lowest_price_info['discount_percent'],
+                            'original_price': lowest_price_info['original_price']
+                        },
                         'lowest_store': lowest_price_info['store']
                     })
 
@@ -402,8 +417,9 @@ class GameRepository:
                             'url': price_info.get('store_url')
                         }
                     formatted_game['prices'] = prices_dict
-            except Exception:
+            except Exception as e:
                 # 価格情報の取得に失敗した場合はデフォルト値のまま
+                print(f"価格情報取得エラー (Game ID: {game_data.id}): {e}")
                 pass
 
         return formatted_game

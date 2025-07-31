@@ -1,277 +1,16 @@
 /* GameBargain Custom Styles */
 
-:root {
-    --primary-color: #667eea;
-    --secondary-color: #764ba2;
-    --success-color: #28a745;
-    --danger-color: #dc3545;
-    --warning-color: #ffc107;
-    --info-color: #17a2b8;
-    --light-color: #f8f9fa;
-    --dark-color: #343a40;
-    --steam-color: #1b2838;
-    --epic-color: #0078f2;
-    --discord-color: #5865F2;
-}
-
-/* 全体のスタイル */
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    line-height: 1.6;
-}
-
-/* ナビゲーションバー */
-.navbar-brand {
-    font-size: 1.5rem;
-    font-weight: 700;
-}
-
-.navbar .form-control:focus {
-    border-color: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
-}
-
-/* カード関連 */
-.card {
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
-}
-
-.card-img-top {
-    transition: transform 0.3s ease;
-}
-
-.card:hover .card-img-top {
-    transform: scale(1.05);
-}
-
-/* ゲームカード */
-.game-card {
-    transition: all 0.3s ease;
-    border: 1px solid rgba(0,0,0,0.125);
-}
-
-.game-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-
-/* カードリンクのスタイル */
-a .game-card {
-    color: inherit;
-}
-
-a:hover .game-card {
-    text-decoration: none;
-}
-
-/* カード画像のホバーエフェクト */
-.game-card img {
-    transition: opacity 0.2s ease-in-out;
-}
-
-.game-card:hover img {
-    opacity: 0.9;
-}
-
-/* 割引バッジ */
-.discount-badge {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background-color: #dc3545;
-    color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    font-weight: bold;
-}
-
-/* 価格表示 */
-.price-container {
-    background: linear-gradient(45deg, var(--light-color), #ffffff);
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 0.5rem 0;
-}
-
-.price-current {
-    font-size: 1.25rem;
-    font-weight: bold;
-    color: var(--success-color);
-}
-
-.price-original {
-    font-size: 1rem;
-    color: var(--secondary);
-    text-decoration: line-through;
-}
-
-/* ストアバッジ */
-.store-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-transform: uppercase;
-}
-
-.store-badge.steam {
-    background-color: var(--steam-color);
-    color: white;
-}
-
-.store-badge.epic {
-    background-color: var(--epic-color);
-    color: white;
-}
-
-.store-badge.gog {
-    background-color: #86328a;
-    color: white;
-}
-
-/* ボタンスタイル */
-.btn {
-    border-radius: 8px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.btn-discord {
-    background-color: var(--discord-color);
-    border-color: var(--discord-color);
-    color: white;
-}
-
-.btn-discord:hover {
-    background-color: #4752c4;
-    border-color: #4752c4;
-    color: white;
-}
-
-.btn-steam {
-    background-color: var(--steam-color);
-    border-color: var(--steam-color);
-    color: white;
-}
-
-.btn-steam:hover {
-    background-color: #2a475e;
-    border-color: #2a475e;
-    color: white;
-}
-
-.btn-epic {
-    background-color: var(--epic-color);
-    border-color: var(--epic-color);
-    color: white;
-}
-
-.btn-epic:hover {
-    background-color: #0056cc;
-    border-color: #0056cc;
-    color: white;
-}
-
-/* お気に入りボタン */
-.favorite-btn {
-    position: relative;
-    overflow: hidden;
-    background-color: rgba(255, 255, 255, 0.9);
-    border: none;
-}
-
-.favorite-btn::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background-color: rgba(220, 53, 69, 0.3);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    transition: width 0.3s ease, height 0.3s ease;
-}
-
-.favorite-btn:hover::before {
-    width: 100%;
-    height: 100%;
-}
-
-.favorite-btn.favorited {
-    background-color: var(--danger-color);
-    border-color: var(--danger-color);
-    color: white;
-}
-
-/* アニメーション */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.fade-in-up {
-    animation: fadeInUp 0.6s ease-out;
-}
-
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-.pulse {
-    animation: pulse 2s infinite;
-}
-
-/* グラデーション背景 */
-.bg-gradient-primary {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-}
-
-.bg-gradient-success {
-    background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
-}
-
-.bg-gradient-danger {
-    background: linear-gradient(135deg, var(--danger-color) 0%, #fd7e14 100%);
-}
-
-/* 検索関連 */
-.search-container {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
+/* 検索サジェスト（Tailwind CSSで対応できない部分のみ） */
 .search-suggestions {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
-    background: white;
-    border: 1px solid #dee2e6;
+    background: #374151;
+    border: 1px solid #4b5563;
     border-top: none;
     border-radius: 0 0 8px 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     z-index: 1000;
     max-height: 300px;
     overflow-y: auto;
@@ -280,12 +19,14 @@ a:hover .game-card {
 .search-suggestion-item {
     padding: 0.75rem 1rem;
     cursor: pointer;
-    border-bottom: 1px solid #f1f3f4;
+    border-bottom: 1px solid #4b5563;
     transition: background-color 0.2s ease;
+    color: #d1d5db;
 }
 
 .search-suggestion-item:hover {
-    background-color: #f8f9fa;
+    background-color: #4b5563;
+    color: #ffffff;
 }
 
 .search-suggestion-item:last-child {
@@ -298,7 +39,7 @@ a:hover .game-card {
     width: 20px;
     height: 20px;
     border: 2px solid #f3f3f3;
-    border-top: 2px solid var(--primary-color);
+    border-top: 2px solid #3b82f6;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -306,114 +47,6 @@ a:hover .game-card {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-
-/* トースト通知 */
-.toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1050;
-}
-
-.toast {
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* フッター */
-footer {
-    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-}
-
-footer a:hover {
-    color: white !important;
-    text-decoration: underline !important;
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-    .navbar-brand {
-        font-size: 1.25rem;
-    }
-    
-    .card-img-top {
-        height: 150px;
-    }
-    
-    .game-card .card-body {
-        padding: 1rem;
-    }
-    
-    .btn-lg {
-        padding: 0.5rem 1rem;
-        font-size: 1rem;
-    }
-    
-    .display-4 {
-        font-size: 2rem;
-    }
-    
-    .display-5 {
-        font-size: 1.5rem;
-    }
-}
-
-@media (max-width: 576px) {
-    .container {
-        padding-left: 0.75rem;
-        padding-right: 0.75rem;
-    }
-    
-    .card-img-top {
-        height: 120px;
-    }
-    
-    .navbar .input-group {
-        max-width: 200px;
-    }
-}
-
-/* プリント用スタイル */
-@media print {
-    .navbar,
-    .btn,
-    footer {
-        display: none !important;
-    }
-    
-    .card {
-        border: 1px solid #000 !important;
-        box-shadow: none !important;
-    }
-}
-
-/* ダークモード対応（将来の拡張用） */
-@media (prefers-color-scheme: dark) {
-    /* 
-    body {
-        background-color: #121212;
-        color: #ffffff;
-    }
-    */
-}
-
-/* アクセシビリティ改善 */
-.btn:focus,
-.form-control:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
-
-/* 高コントラスト対応 */
-@media (prefers-contrast: high) {
-    .btn {
-        border-width: 2px;
-    }
-    
-    .card {
-        border-width: 2px;
-    }
 }
 
 /* 動きの軽減設定に対応 */
