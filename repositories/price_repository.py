@@ -140,9 +140,9 @@ class PriceRepository:
             List[Price]: 価格情報のリスト
         """
         prices = self.session.query(Price).filter_by(game_id=game_id).order_by(Price.created_at.desc()).all()
-        print(f"[DEBUG] get_latest_prices: game_id={game_id}, count={len(prices)}")
+        logger.debug(f"get_latest_prices: game_id={game_id}, count={len(prices)}")
         for p in prices:
-            print(f"[DEBUG]  store={p.store}, price={p.get_current_price()}, sale={p.is_on_sale}, updated={p.updated_at}")
+            logger.debug(f"store={p.store}, price={p.get_current_price()}, sale={p.is_on_sale}, updated={p.updated_at}")
         return prices
 
     def get_formatted_prices_for_game(self, game_id: int, max_age_hours: Optional[int] = None) -> List[Dict[str, Any]]:
