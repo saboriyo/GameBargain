@@ -78,6 +78,7 @@ class Config:
     
     # アプリケーション固有設定
     PRICE_UPDATE_INTERVAL = int(os.environ.get('PRICE_UPDATE_INTERVAL', 3600))  # 1時間
+    PRICE_CACHE_MAX_AGE_HOURS = int(os.environ.get('PRICE_CACHE_MAX_AGE_HOURS', 1))  # 価格キャッシュの最大経過時間（時間）
     MAX_FAVORITES_PER_USER = int(os.environ.get('MAX_FAVORITES_PER_USER', 100))
     NOTIFICATION_BATCH_SIZE = int(os.environ.get('NOTIFICATION_BATCH_SIZE', 50))
     
