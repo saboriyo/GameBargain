@@ -38,11 +38,10 @@ class Price(db.Model):
     is_on_sale = Column(Boolean, default=False, index=True)
     sale_start_date = Column(DateTime)
     sale_end_date = Column(DateTime)
-    store_url = Column(String(500))  # 購入ページURL
     
     # タイムスタンプ
-    created_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     __table_args__ = (
         Index('idx_prices_game_store', 'game_id', 'store'),
@@ -133,6 +132,26 @@ class Price(db.Model):
             return False
         
         return True
+    
+    def get_store_url(self) -> Optional[str]:
+        """
+        ストアURLを動的に生成
+        
+        Returns:
+            Optional[str]: ストアURL（生成できない場合はNone）
+        """
+        store = getattr(self, 'store', '')
+        
+        if store == 'steam' and hasattr(self, 'game'):
+            game = getattr(self, 'game', None)
+            if game:
+                steam_appid = getattr(game, 'steam_appid', None)
+                if steam_appid:
+                    return f"https://store.steampowered.com/app/{steam_appid}/"
+        
+        # TODO: 他のストア（Epic Games Store等）のURL生成を追加
+        
+        return None
     
     def get_formatted_price(self) -> str:
         """
