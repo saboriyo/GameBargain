@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景の円 -->
+  <circle cx="16" cy="16" r="15" fill="#1E293B" stroke="#3B82F6" stroke-width="2"/>
+  
+  <!-- 雷のメインボディ（上下対称） -->
+  <path d="M16 4L13 12H19L8 28L16 18H10L16 4Z" fill="#3B82F6"/>
+  
+  <!-- 雷のハイライト（上下対称） -->
+  <path d="M16 6L14 12H18L11 26L16 16H11L16 6Z" fill="#60A5FA" opacity="0.7"/>
+</svg> 

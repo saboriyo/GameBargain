@@ -17,7 +17,7 @@ from models.game import Game as GameModel
 class GameRepository:
     """ゲーム情報のリポジトリクラス"""
     
-    def __init__(self, session: Session = None):
+    def __init__(self, session: Optional[Session] = None):
         """
         初期化
         
@@ -81,20 +81,8 @@ class GameRepository:
         Returns:
             フィルター適用後のクエリ
         """
-        # 価格フィルター
-        if filters.get('min_price'):
-            try:
-                min_price = float(filters['min_price'])
-                query = query.filter(Game.current_price >= min_price)
-            except (ValueError, TypeError):
-                pass
-        
-        if filters.get('max_price'):
-            try:
-                max_price = float(filters['max_price'])
-                query = query.filter(Game.current_price <= max_price)
-            except (ValueError, TypeError):
-                pass
+        # 価格フィルターは現在のところ無効化（Priceテーブルとの結合が必要）
+        # TODO: 価格フィルターを実装する場合はPriceテーブルとの結合を追加
         
         # ジャンルフィルター
         if filters.get('genre'):
@@ -118,10 +106,14 @@ class GameRepository:
         Returns:
             ソート適用後のクエリ
         """
-        if sort == 'price_asc':
-            return query.order_by(asc(Game.current_price))
-        elif sort == 'price_desc':
-            return query.order_by(desc(Game.current_price))
+        # 価格ソートは現在のところ無効化（Priceテーブルとの結合が必要）
+        # TODO: 価格ソートを実装する場合はPriceテーブルとの結合を追加
+        if sort == 'price_asc' or sort == 'price_desc':
+            # 価格ソートは無効化し、関連度順にフォールバック
+            return query.order_by(
+                desc(Game.steam_rating),
+                desc(Game.updated_at)
+            )
         elif sort == 'release_date':
             return query.order_by(desc(Game.release_date))
         elif sort == 'title':
@@ -252,7 +244,6 @@ class GameRepository:
             
             if existing_game:
                 # 既存ゲームの更新
-                price_info = steam_game.get('price_info', {})
                 update_data = {
                     'title': steam_game.get('title') or existing_game.title,
                     'description': steam_game.get('description') or existing_game.description,
@@ -265,22 +256,11 @@ class GameRepository:
                     'updated_at': datetime.now(timezone.utc)
                 }
                 
-                # 価格情報の更新（有効な値のみ）
-                if price_info and price_info.get('current_price') is not None:
-                    update_data.update({
-                        'current_price': price_info.get('current_price'),
-                        'original_price': price_info.get('original_price'),
-                        'discount_percent': price_info.get('discount_percent', 0)
-                    })
-                
                 return self.update(existing_game, **update_data)
             else:
                 # 新規ゲームの作成
                 genres = steam_game.get('genres', [])
                 genres_str = ','.join(genres) if isinstance(genres, list) else str(genres) if genres else ''
-                
-                # 価格情報の取得
-                price_info = steam_game.get('price_info', {})
                 
                 # 必須フィールドのデフォルト値設定
                 title = steam_game.get('title')
@@ -300,9 +280,6 @@ class GameRepository:
                     'steam_url': steam_game.get('steam_url') or f"https://store.steampowered.com/app/{steam_appid}/",
                     'steam_rating': steam_game.get('steam_rating'),
                     'metacritic_score': steam_game.get('metacritic_score'),
-                    'current_price': price_info.get('current_price') if price_info.get('current_price') is not None else None,
-                    'original_price': price_info.get('original_price') if price_info.get('original_price') is not None else None,
-                    'discount_percent': price_info.get('discount_percent', 0),
                     'is_active': True
                 }
                 
@@ -334,3 +311,115 @@ class GameRepository:
     def rollback(self):
         """トランザクションをロールバック"""
         self.session.rollback()
+
+    def format_game_for_web_template(self, game_data, price_repository=None) -> Dict[str, Any]:
+        """
+        ゲームデータをWebテンプレート用に整形
+        GameSearchServiceからのデータとGameモデルの両方に対応
+        
+        Args:
+            game_data: GameSearchServiceからの辞書データまたはGameモデルオブジェクト
+            price_repository: PriceRepositoryインスタンス（価格情報取得用）
+            
+        Returns:
+            Dict: 整形されたゲームデータ
+        """
+        # GameSearchServiceからの辞書データの場合
+        if isinstance(game_data, dict):
+            return {
+                'id': game_data.get('id'),
+                'title': game_data.get('title'),
+                'description': game_data.get('description'),
+                'developer': game_data.get('developer'),
+                'publisher': game_data.get('publisher'),
+                'release_date': game_data.get('release_date') or '',
+                'genres': game_data.get('genres', []),
+                'platforms': game_data.get('platforms', []),
+                'image_url': game_data.get('image_url') or 'https://via.placeholder.com/300x400',
+                'steam_url': game_data.get('steam_url'),
+                'steam_rating': game_data.get('steam_rating'),
+                'metacritic_score': game_data.get('metacritic_score'),
+                'current_price': game_data.get('current_price') or 0.0,
+                'original_price': game_data.get('original_price') or 0.0,
+                'discount_percent': game_data.get('discount_percent', 0),
+                'is_on_sale': game_data.get('discount_percent', 0) > 0,
+                'lowest_price': {
+                    'price': game_data.get('current_price') or 0.0,
+                    'store': 'steam',
+                    'discount_percent': game_data.get('discount_percent', 0),
+                    'original_price': game_data.get('original_price') or 0.0
+                },
+                'lowest_store': 'steam',
+                'prices': game_data.get('prices', {})
+            }
+
+        # Gameモデルオブジェクトの場合
+        formatted_game = {
+            'id': game_data.id,
+            'title': game_data.title,
+            'description': game_data.description,
+            'developer': game_data.developer,
+            'publisher': game_data.publisher,
+            'release_date': game_data.release_date.strftime('%Y-%m-%d') if game_data.release_date else '',
+            'genres': game_data.genres.split(',') if isinstance(game_data.genres, str) and game_data.genres else (game_data.genres if isinstance(game_data.genres, list) else []),
+            'platforms': game_data.platforms.split(',') if isinstance(game_data.platforms, str) and game_data.platforms else (game_data.platforms if isinstance(game_data.platforms, list) else []),
+            'image_url': game_data.image_url or 'https://via.placeholder.com/300x400',
+            'steam_url': game_data.steam_url,
+            'steam_rating': game_data.steam_rating,
+            'metacritic_score': game_data.metacritic_score,
+            'current_price': 0.0,
+            'original_price': 0.0,
+            'discount_percent': 0,
+            'is_on_sale': False,
+            'lowest_price': {
+                'price': 0.0,
+                'store': 'steam',
+                'discount_percent': 0,
+                'original_price': 0.0
+            },
+            'lowest_store': 'steam',
+            'prices': {}
+        }
+
+        # 価格情報を取得してマージ
+        if price_repository:
+            try:
+                formatted_prices = price_repository.get_formatted_prices_for_game(game_data.id)
+                if formatted_prices:
+                    # 最初の価格を現在価格として設定
+                    first_price = formatted_prices[0]
+                    formatted_game.update({
+                        'current_price': first_price['price'],
+                        'original_price': first_price['original_price'],
+                        'discount_percent': first_price['discount_percent'],
+                        'is_on_sale': first_price['is_on_sale']
+                    })
+
+                    # 最安値を計算
+                    lowest_price_info = min(formatted_prices, key=lambda p: p['price'])
+                    formatted_game.update({
+                        'lowest_price': {
+                            'price': lowest_price_info['price'],
+                            'store': lowest_price_info['store'],
+                            'discount_percent': lowest_price_info['discount_percent'],
+                            'original_price': lowest_price_info['original_price']
+                        },
+                        'lowest_store': lowest_price_info['store']
+                    })
+
+                    # prices辞書を構築
+                    prices_dict = {}
+                    for price_info in formatted_prices:
+                        prices_dict[price_info['store']] = {
+                            'current': price_info['price'],
+                            'original': price_info['original_price'],
+                            'discount': price_info['discount_percent'],
+                            'url': price_info.get('store_url')
+                        }
+                    formatted_game['prices'] = prices_dict
+            except Exception as e:
+                # 価格情報の取得に失敗した場合はデフォルト値のまま
+                print(f"価格情報取得エラー (Game ID: {game_data.id}): {e}")
+                pass
+
+        return formatted_game

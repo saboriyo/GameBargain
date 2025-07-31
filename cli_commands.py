@@ -10,6 +10,7 @@ from flask.cli import with_appcontext
 
 from services.game_search_service import GameSearchService
 from repositories.game_repository import GameRepository
+from services.price_change_detector import PriceChangeDetector
 
 
 
@@ -604,6 +605,51 @@ def db_init():
         click.echo(traceback.format_exc())
 
 
+@click.command()
+@click.option('--dry-run', is_flag=True, help='実際の更新は行わず、検出のみ実行')
+@click.option('--verbose', '-v', is_flag=True, help='詳細ログを表示')
+@with_appcontext
+def detect_price_changes(dry_run, verbose):
+    """価格変動を検出し、価格データを更新"""
+    click.echo('価格変動検出を開始...')
+    
+    # ログレベル設定
+    if verbose:
+        import logging
+        logging.getLogger('services.steam_service').setLevel(logging.DEBUG)
+        logging.getLogger('services.price_change_detector').setLevel(logging.DEBUG)
+        click.echo('[VERBOSE] 詳細ログを有効にしました')
+    
+    try:
+        detector = PriceChangeDetector()
+        
+        if dry_run:
+            click.echo('[DRY RUN] 検出のみ実行します（データベースは更新されません）')
+            price_changes = detector.detect_price_changes()
+            
+            if price_changes:
+                click.echo(f'検出された価格変動: {len(price_changes)}件')
+                for change in price_changes[:10]:  # 最初の10件のみ表示
+                    click.echo(f'  - {change.game_title} ({change.store}): {change.change_type}')
+                    if change.old_price:
+                        click.echo(f'    {change.old_price} -> {change.new_price}')
+                    else:
+                        click.echo(f'    新規価格: ¥{change.new_price}')
+                
+                if len(price_changes) > 10:
+                    click.echo(f'  ... 他 {len(price_changes) - 10}件')
+            else:
+                click.echo('価格変動は検出されませんでした')
+        else:
+            detector.process_price_changes()
+            click.echo('価格変動検出・処理が完了しました')
+        
+    except Exception as e:
+        click.echo(f'価格変動検出エラー: {e}')
+        import traceback
+        click.echo(traceback.format_exc())
+
+
 def register_commands(app):
     """CLIコマンドを登録"""
     # ゲーム検索 - 統合版（自動切り替え）
@@ -624,3 +670,6 @@ def register_commands(app):
     # データベースデバッグと初期化
     app.cli.add_command(db_debug)
     app.cli.add_command(db_init)
+    
+    # 価格変動検出
+    app.cli.add_command(detect_price_changes)

@@ -6,9 +6,11 @@ Flask-SQLAlchemyパターン
 """
 
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Text, Date, Boolean, DECIMAL, Integer
+from sqlalchemy import Column, String, Text, Date, Boolean, DECIMAL, Integer, DateTime
 from sqlalchemy.orm import relationship
-from models import db
+
+# modelsパッケージからdbインスタンスをインポート
+from . import db
 
 
 class Game(db.Model):
@@ -45,20 +47,15 @@ class Game(db.Model):
     platforms = Column(Text, nullable=True, comment='対応プラットフォーム（カンマ区切り）')
     
     # 評価情報
-    steam_rating = Column(DECIMAL(3, 2), nullable=True, comment='Steam評価（0-100）')
+    steam_rating: Column[DECIMAL] = Column(DECIMAL(3, 2), nullable=True, comment='Steam評価（0-100）')
     metacritic_score = Column(Integer, nullable=True, comment='Metacriticスコア')
-    
-    # 価格情報（最新の価格を保持）
-    current_price = Column(DECIMAL(10, 2), nullable=True, comment='現在価格')
-    original_price = Column(DECIMAL(10, 2), nullable=True, comment='元価格')
-    discount_percent = Column(Integer, nullable=True, comment='割引率')
     
     # ステータス
     is_active = Column(Boolean, default=True, nullable=False, comment='アクティブ状態')
     
     # タイムスタンプ
-    created_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     # リレーションシップ
     prices = relationship('Price', back_populates='game', cascade='all, delete-orphan')
@@ -84,9 +81,6 @@ class Game(db.Model):
             'release_date': getattr(self, 'release_date').isoformat() if getattr(self, 'release_date') else None,
             'steam_rating': float(getattr(self, 'steam_rating')) if getattr(self, 'steam_rating') is not None else None,
             'metacritic_score': self.metacritic_score,
-            'current_price': float(getattr(self, 'current_price')) if getattr(self, 'current_price') is not None else None,
-            'original_price': float(getattr(self, 'original_price')) if getattr(self, 'original_price') is not None else None,
-            'discount_percent': self.discount_percent,
             'is_active': self.is_active,
             'created_at': getattr(self, 'created_at').isoformat() if getattr(self, 'created_at') else None,
             'updated_at': getattr(self, 'updated_at').isoformat() if getattr(self, 'updated_at') else None
