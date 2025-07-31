@@ -1,3 +1,6 @@
+
+DEFAULT_MAX_AGE_HOURS = 1
+
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
@@ -140,9 +143,9 @@ class PriceRepository:
             List[Price]: 価格情報のリスト
         """
         prices = self.session.query(Price).filter_by(game_id=game_id).order_by(Price.created_at.desc()).all()
-        logger.debug(f"get_latest_prices: game_id={game_id}, count={len(prices)}")
+        print(f"[DEBUG] get_latest_prices: game_id={game_id}, count={len(prices)}")
         for p in prices:
-            logger.debug(f"store={p.store}, price={p.get_current_price()}, sale={p.is_on_sale}, updated={p.updated_at}")
+            print(f"[DEBUG]  store={p.store}, price={p.get_current_price()}, sale={p.is_on_sale}, updated={p.updated_at}")
         return prices
 
     def get_formatted_prices_for_game(self, game_id: int, max_age_hours: Optional[int] = None) -> List[Dict[str, Any]]:
