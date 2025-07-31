@@ -175,6 +175,89 @@ def search_steam(query, limit, save_to_db):
 
 
 @click.command()
+@click.option('--query', '-q', required=True, help='検索クエリ（必須）')
+@click.option('--limit', '-l', default=20, help='取得件数 (デフォルト: 20)')
+@click.option('--save-to-db', is_flag=True, help='検索結果をデータベースに保存')
+@with_appcontext
+def search_epic(query, limit, save_to_db):
+    """Epic Games Store APIからゲーム検索"""
+    click.echo(f'Epic Games Store API検索: "{query}" (最大{limit}件)')
+    
+    try:
+        from services.epic_service import EpicGamesStoreAPI
+        epic_service = EpicGamesStoreAPI()
+        
+        # Epic Games Store APIから検索
+        games = epic_service.search_games(query, limit)
+        
+        # 結果の表示
+        click.echo(f'\nEpic Games Store API検索結果: {len(games)}件')
+        click.echo('-' * 80)
+        
+        if not games:
+            click.echo('該当するゲームが見つかりませんでした。')
+            return
+        
+        for i, game in enumerate(games, 1):
+            click.echo(f'{i}. {game.get("title", "タイトル不明")}')
+            
+            if game.get('developer'):
+                click.echo(f'   開発者: {game["developer"]}')
+            
+            if game.get('genres'):
+                genres = ', '.join(game['genres']) if isinstance(game['genres'], list) else game['genres']
+                click.echo(f'   ジャンル: {genres}')
+            
+            # 価格情報の表示
+            price_info = game.get('price_info', {})
+            if price_info.get('current_price'):
+                price = price_info['current_price']
+                original_price = price_info.get('original_price')
+                discount = price_info.get('discount_percent', 0)
+                
+                if original_price and discount > 0:
+                    click.echo(f'   価格: ¥{price:,.0f} (元価格: ¥{original_price:,.0f}, {discount}%OFF)')
+                else:
+                    click.echo(f'   価格: ¥{price:,.0f}')
+            elif price_info.get('is_free'):
+                click.echo('   価格: 無料')
+            else:
+                click.echo('   価格: 価格情報なし')
+            
+            if game.get('metacritic_score'):
+                click.echo(f'   Metacriticスコア: {game["metacritic_score"]}')
+            
+            if game.get('description'):
+                # 説明文を100文字で切り詰め
+                description = game['description']
+                if len(description) > 100:
+                    description = description[:100] + '...'
+                click.echo(f'   説明: {description}')
+            
+            if game.get('epic_url'):
+                click.echo(f'   Epic URL: {game["epic_url"]}')
+            
+            if game.get('epic_namespace'):
+                click.echo(f'   Epic Namespace: {game["epic_namespace"]}')
+            
+            click.echo()
+        
+        # データベースに保存するオプション
+        if save_to_db:
+            click.echo('検索結果をデータベースに保存中...')
+            from services.game_search_service import GameSearchService
+            search_service = GameSearchService()
+            game_repository = GameRepository()
+            
+            # Epic Games Storeの結果をデータベースに保存
+            saved_games = game_repository.save_external_games_from_api(games)
+            click.echo(f'{len(saved_games)}件のゲームをデータベースに保存しました。')
+        
+    except Exception as e:
+        click.echo(f'エラーが発生しました: {e}', err=True)
+
+
+@click.command()
 @click.option('--query', '-q', help='検索クエリ')
 @click.option('--page', '-p', default=1, help='ページ番号 (デフォルト: 1)')
 @click.option('--per-page', default=10, help='1ページあたりの表示件数 (デフォルト: 10)')
@@ -348,6 +431,48 @@ def recent_games_steam(limit):
 @click.command()
 @click.option('--limit', '-l', default=10, help='表示件数 (デフォルト: 10)')
 @with_appcontext
+def recent_games_epic(limit):
+    """Epic Games Store APIから最近追加されたゲーム一覧"""
+    click.echo(f'Epic Games Store API: 最近追加されたゲーム (上位{limit}件)')
+    
+    try:
+        from services.epic_service import EpicGamesStoreAPI
+        epic_service = EpicGamesStoreAPI()
+        games = epic_service.get_recent_games(limit)
+        
+        if not games:
+            click.echo('最近追加されたゲームがありません。')
+            return
+        
+        click.echo('-' * 80)
+        
+        for i, game in enumerate(games, 1):
+            click.echo(f'{i}. {game.get("title", "タイトル不明")}')
+            
+            if game.get('developer'):
+                click.echo(f'   開発者: {game["developer"]}')
+            
+            # 価格情報の表示
+            price_info = game.get('price_info', {})
+            if price_info.get('current_price'):
+                click.echo(f'   価格: ¥{price_info["current_price"]:,.0f}')
+            elif price_info.get('is_free'):
+                click.echo('   価格: 無料')
+            else:
+                click.echo('   価格: 価格情報なし')
+            
+            if game.get('metacritic_score'):
+                click.echo(f'   Metacriticスコア: {game["metacritic_score"]}')
+            
+            click.echo()
+            
+    except Exception as e:
+        click.echo(f'エラーが発生しました: {e}', err=True)
+
+
+@click.command()
+@click.option('--limit', '-l', default=10, help='表示件数 (デフォルト: 10)')
+@with_appcontext
 def popular_games_db(limit):
     """データベースから人気ゲーム一覧"""
     click.echo(f'データベース: 人気ゲーム (上位{limit}件)')
@@ -420,6 +545,93 @@ def popular_games_steam(limit):
                 click.echo('   価格: 無料')
             else:
                 click.echo('   価格: 価格情報なし')
+            
+            click.echo()
+            
+    except Exception as e:
+        click.echo(f'エラーが発生しました: {e}', err=True)
+
+
+@click.command()
+@click.option('--limit', '-l', default=10, help='表示件数 (デフォルト: 10)')
+@with_appcontext
+def popular_games_epic(limit):
+    """Epic Games Store APIから人気ゲーム一覧"""
+    click.echo(f'Epic Games Store API: 人気ゲーム (上位{limit}件)')
+    
+    try:
+        from services.epic_service import EpicGamesStoreAPI
+        epic_service = EpicGamesStoreAPI()
+        games = epic_service.get_popular_games(limit)
+        
+        if not games:
+            click.echo('人気ゲームの情報がありません。')
+            return
+        
+        click.echo('-' * 80)
+        
+        for i, game in enumerate(games, 1):
+            click.echo(f'{i}. {game.get("title", "タイトル不明")}')
+            
+            if game.get('developer'):
+                click.echo(f'   開発者: {game["developer"]}')
+            
+            if game.get('metacritic_score'):
+                click.echo(f'   Metacriticスコア: {game["metacritic_score"]}')
+            
+            # 価格情報の表示
+            price_info = game.get('price_info', {})
+            if price_info.get('current_price'):
+                click.echo(f'   価格: ¥{price_info["current_price"]:,.0f}')
+            elif price_info.get('is_free'):
+                click.echo('   価格: 無料')
+            else:
+                click.echo('   価格: 価格情報なし')
+            
+            click.echo()
+            
+    except Exception as e:
+        click.echo(f'エラーが発生しました: {e}', err=True)
+
+
+@click.command()
+@with_appcontext
+def free_games_epic():
+    """Epic Games Store APIから無料ゲーム一覧"""
+    click.echo('Epic Games Store API: 無料ゲーム')
+    
+    try:
+        from services.epic_service import EpicGamesStoreAPI
+        epic_service = EpicGamesStoreAPI()
+        games = epic_service.get_free_games()
+        
+        if not games:
+            click.echo('無料ゲームの情報がありません。')
+            return
+        
+        click.echo(f'取得された無料ゲーム: {len(games)}件')
+        click.echo('-' * 80)
+        
+        for i, game in enumerate(games, 1):
+            click.echo(f'{i}. {game.get("title", "タイトル不明")}')
+            
+            if game.get('developer'):
+                click.echo(f'   開発者: {game["developer"]}')
+            
+            if game.get('metacritic_score'):
+                click.echo(f'   Metacriticスコア: {game["metacritic_score"]}')
+            
+            # 価格情報の表示
+            price_info = game.get('price_info', {})
+            if price_info.get('is_free'):
+                click.echo('   価格: 無料')
+            elif price_info.get('current_price'):
+                click.echo(f'   価格: ¥{price_info["current_price"]:,.0f}')
+            else:
+                click.echo('   価格: 価格情報なし')
+            
+            if game.get('epic_url'):
+                click.echo(f'   Epic URL: {game["epic_url"]}')
             
             click.echo()
             
@@ -666,6 +878,12 @@ def register_commands(app):
     app.cli.add_command(search_steam)
     app.cli.add_command(recent_games_steam)
     app.cli.add_command(popular_games_steam)
+    
+    # ゲーム検索 - Epic Games Store API専用
+    app.cli.add_command(search_epic)
+    app.cli.add_command(recent_games_epic)
+    app.cli.add_command(popular_games_epic)
+    app.cli.add_command(free_games_epic)
     
     # データベースデバッグと初期化
     app.cli.add_command(db_debug)

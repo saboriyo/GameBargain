@@ -39,8 +39,8 @@
 
                     {% if show_genres and game.genres %}
                     <div class="mb-3">
-                        {% for genre in game.genres.split(',')[:2] %}
-                        <span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">{{ genre.strip() }}</span>
+                        {% for genre in game.genres[:2] %}
+                        <span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">{{ genre }}</span>
                         {% endfor %}
                     </div>
                     {% endif %}
@@ -90,8 +90,8 @@
             <p class="text-gray-400 text-sm mb-2 line-clamp-2">{{ game.description[:150] }}...</p>
             {% if game.genres %}
             <div class="mb-2">
-                {% for genre in game.genres.split(',')[:3] %}
-                <span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1">{{ genre.strip() }}</span>
+                {% for genre in game.genres[:3] %}
+                <span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1">{{ genre }}</span>
                 {% endfor %}
             </div>
             {% endif %}
