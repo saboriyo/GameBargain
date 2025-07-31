@@ -407,3 +407,89 @@ class SteamAPIService:
             
         except Exception:
             return None
+
+    def get_game_price(self, app_id: str) -> Optional[Dict[str, Any]]:
+        """
+        指定されたゲームの価格情報を取得
+        
+        Args:
+            app_id: Steam App ID
+            
+        Returns:
+            Optional[Dict[str, Any]]: 価格情報（見つからない場合はNone）
+        """
+        try:
+            # Steam Store API を使用して価格情報を取得
+            url = f"{self.STORE_BASE_URL}/appdetails"
+            params = {
+                'appids': app_id,
+                'filters': 'price_overview',
+                'cc': 'jp'  # 日本の価格
+            }
+            
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            logger.debug(f"Steam API response for {app_id}: {type(data)} - {data}")
+            
+            # データが辞書でない場合の対処
+            if not isinstance(data, dict):
+                logger.warning(f"Steam APIから予期しないデータ形式: {type(data)} (App ID: {app_id})")
+                return None
+            
+            app_data = data.get(str(app_id))
+            
+            # app_dataがNoneまたは辞書でない場合の対処
+            if not app_data or not isinstance(app_data, dict):
+                logger.warning(f"App data not found or invalid format for App ID {app_id}: {app_data}")
+                return None
+            
+            if not app_data.get('success'):
+                logger.warning(f"Steam価格取得失敗: App ID {app_id} - {app_data}")
+                return None
+            
+            # dataフィールドの確認
+            app_detail_data = app_data.get('data')
+            if not app_detail_data or not isinstance(app_detail_data, dict):
+                logger.debug(f"App detail data not found for App ID {app_id}")
+                # 無料ゲームまたは価格情報がない場合
+                return {
+                    'price': 0,
+                    'original_price': 0,
+                    'discount_percent': 0,
+                    'currency': 'JPY',
+                    'is_on_sale': False
+                }
+            
+            price_overview = app_detail_data.get('price_overview')
+            
+            if not price_overview or not isinstance(price_overview, dict):
+                # 無料ゲームの場合
+                logger.debug(f"No price overview for App ID {app_id} - likely free game")
+                return {
+                    'price': 0,
+                    'original_price': 0,
+                    'discount_percent': 0,
+                    'currency': 'JPY',
+                    'is_on_sale': False
+                }
+            
+            # 価格情報を整形
+            current_price = price_overview.get('final', 0) / 100  # セント単位から円に変換
+            initial_price = price_overview.get('initial', current_price) / 100
+            discount_percent = price_overview.get('discount_percent', 0)
+            
+            logger.debug(f"Parsed price for App ID {app_id}: {current_price} JPY")
+            
+            return {
+                'price': current_price,
+                'original_price': initial_price,
+                'discount_percent': discount_percent,
+                'currency': price_overview.get('currency', 'JPY'),
+                'is_on_sale': discount_percent > 0
+            }
+            
+        except Exception as e:
+            logger.error(f"Steam価格取得エラー (App ID: {app_id}): {e}")
+            return None

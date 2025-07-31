@@ -15,6 +15,8 @@ from models import db, Game, Price, Favorite, User, Notification
 from services.steam_service import SteamAPIService
 from services.game_search_service import GameSearchService
 from repositories.game_repository import GameRepository
+from repositories.price_repository import PriceRepository
+from repositories.user_repository import UserRepository
 
 # ブループリントの作成
 main_bp = Blueprint('main', __name__)
@@ -55,8 +57,9 @@ def index():
         sale_games_db = []
         
         # レスポンス用に整形
-        featured_games = [_format_game_for_web_template(game) for game in featured_games_db]
-        sale_games = [_format_game_for_web_template(game) for game in sale_games_db]
+        price_repository = PriceRepository()
+        featured_games = [game_repository.format_game_for_web_template(game, price_repository) for game in featured_games_db]
+        sale_games = [game_repository.format_game_for_web_template(game, price_repository) for game in sale_games_db]
         
         current_app.logger.info(f"トップページ表示: 注目ゲーム={len(featured_games)}件, セール={len(sale_games)}件")
         
@@ -113,9 +116,11 @@ def search():
     if not query and not has_filters:
         # 初期状態（検索前）- GameSearchServiceから最近追加されたゲームを取得
         try:
+            game_repository = GameRepository()
+            price_repository = PriceRepository()
             search_service = GameSearchService()
             recent_games_data = search_service.get_recent_games(4)
-            recent_games = [_format_game_for_web_template(game) for game in recent_games_data]
+            recent_games = [game_repository.format_game_for_web_template(game, price_repository) for game in recent_games_data]
         except Exception as e:
             current_app.logger.error(f"最近のゲーム取得エラー: {e}")
             recent_games = []
@@ -147,7 +152,9 @@ def search():
         pagination_data = search_result.get('pagination', {})
         total_count = search_result.get('total_count', 0)
         
-        search_results = [_format_game_for_web_template(game) for game in games]
+        game_repository = GameRepository()
+        price_repository = PriceRepository()
+        search_results = [game_repository.format_game_for_web_template(game, price_repository) for game in games]
         
         # ページネーション情報をWeb用に変換
         pagination = {
@@ -237,37 +244,32 @@ def game_detail(game_id: int):
         str: レンダリングされたHTMLテンプレート
     """
     try:
+        # リポジトリを初期化
+        game_repository = GameRepository()
+        price_repository = PriceRepository()
+        
         # データベースからゲーム情報を取得
-        game = db.session.get(Game, game_id)
+        game = game_repository.get_by_id(game_id)
         if not game:
             flash('指定されたゲームが見つかりません。', 'error')
             return redirect(url_for('main.index'))
         
-        # ゲーム情報を整形（これにより価格情報も含まれる）
-        game_data = _format_game_for_web_template(game)
+        # ゲーム情報を整形（価格情報も含む）
+        game_data = game_repository.format_game_for_web_template(game, price_repository)
         current_app.logger.debug(f"ゲーム情報: id={game_data['id']}, "
                                f"title={game_data['title']}, "
                                f"current_price={game_data.get('current_price')}")
 
-        # game_dataから価格情報を整形
-        formatted_prices = []
-        if game_data['prices']:
-            for store, price_info in game_data['prices'].items():
-                formatted_price = {
-                    'store': store,
-                    'price': price_info['current'],
-                    'original_price': price_info['original'],
-                    'discount_percent': price_info['discount'],
-                    'store_url': price_info.get('url'),
-                    'updated_at': datetime.now()  # または適切な更新日時
-                }
-                formatted_prices.append(formatted_price)
-                current_app.logger.debug(f"整形後の価格情報: {formatted_price}")
+        # PriceRepositoryから価格情報を取得
+        formatted_prices = price_repository.get_formatted_prices_for_game(game_id)
+        current_app.logger.debug(f"取得した価格情報数: {len(formatted_prices)}")
+        
+        for formatted_price in formatted_prices:
+            current_app.logger.debug(f"整形後の価格情報: {formatted_price}")
 
         # 最安値を特定
-        lowest_price = None
-        if formatted_prices:
-            lowest_price = min(formatted_prices, key=lambda p: p['price'])
+        lowest_price = price_repository.get_lowest_price_for_game(game_id)
+        if lowest_price:
             current_app.logger.debug(f"最安値: store={lowest_price['store']}, "
                                    f"price={lowest_price['price']}, "
                                    f"discount={lowest_price['discount_percent']}%")
@@ -284,11 +286,8 @@ def game_detail(game_id: int):
         # お気に入り状態をチェック
         is_favorited = False
         if current_user.is_authenticated:
-            favorite = db.session.query(Favorite).filter_by(
-                user_id=current_user.user_id,
-                game_id=game_id
-            ).first()
-            is_favorited = favorite is not None
+            user_repository = UserRepository()
+            is_favorited = user_repository.is_game_favorited(current_user.user_id, game_id)
 
         return render_template('game_detail.html', 
                              game=game_data,
@@ -314,13 +313,13 @@ def favorites():
         str: レンダリングされたHTMLテンプレート
     """
     try:
-        # データベースからユーザーのお気に入りを取得
-        favorites_query = db.session.query(Game).join(Favorite).filter(
-            Favorite.user_id == current_user.user_id
-        ).order_by(db.desc(Favorite.created_at))
+        # UserRepositoryを使用してお気に入りを取得
+        user_repository = UserRepository()
+        game_repository = GameRepository()
+        price_repository = PriceRepository()
         
-        favorite_games_db = favorites_query.all()
-        favorite_games = [_format_game_for_web_template(game) for game in favorite_games_db]
+        favorite_games_db = user_repository.get_user_favorites(current_user.user_id)
+        favorite_games = [game_repository.format_game_for_web_template(game, price_repository) for game in favorite_games_db]
         
         current_app.logger.info(f"お気に入り一覧表示: user_id={current_user.user_id}, count={len(favorite_games)}")
         
@@ -349,33 +348,28 @@ def add_favorite(game_id: int):
         dict: JSON レスポンス
     """
     try:
+        # リポジトリを初期化
+        game_repository = GameRepository()
+        user_repository = UserRepository()
+        
         # ゲームの存在確認
-        game = db.session.get(Game, game_id)
+        game = game_repository.get_by_id(game_id)
         if not game:
             return jsonify({
                 'success': False,
                 'message': 'ゲームが見つかりません'
             }), 404
         
-        # 既にお気に入りに追加済みかチェック
-        existing_favorite = db.session.query(Favorite).filter_by(
-            user_id=current_user.user_id,
-            game_id=game_id
-        ).first()
+        # お気に入りに追加
+        favorite = user_repository.add_favorite(current_user.user_id, game_id)
         
-        if existing_favorite:
+        if favorite is None:
             return jsonify({
                 'success': False,
                 'message': '既にお気に入りに追加されています'
             }), 400
         
-        # お気に入りに追加
-        favorite = Favorite(
-            user_id=current_user.user_id,
-            game_id=game_id
-        )
-        db.session.add(favorite)
-        db.session.commit()
+        user_repository.commit()
         
         current_app.logger.info(f"お気に入り追加: user_id={current_user.user_id}, game_id={game_id}")
         
@@ -385,7 +379,8 @@ def add_favorite(game_id: int):
         })
         
     except Exception as e:
-        db.session.rollback()
+        if 'user_repository' in locals():
+            user_repository.rollback()
         current_app.logger.error(f"お気に入り追加エラー: {e}")
         return jsonify({
             'success': False,
@@ -406,21 +401,19 @@ def remove_favorite(game_id: int):
         dict: JSON レスポンス
     """
     try:
-        # お気に入りを検索
-        favorite = db.session.query(Favorite).filter_by(
-            user_id=current_user.user_id,
-            game_id=game_id
-        ).first()
+        # リポジトリを初期化
+        user_repository = UserRepository()
         
-        if not favorite:
+        # お気に入りから削除
+        success = user_repository.remove_favorite(current_user.user_id, game_id)
+        
+        if not success:
             return jsonify({
                 'success': False,
                 'message': 'お気に入りに登録されていません'
             }), 404
         
-        # お気に入りから削除
-        db.session.delete(favorite)
-        db.session.commit()
+        user_repository.commit()
         
         current_app.logger.info(f"お気に入り削除: user_id={current_user.user_id}, game_id={game_id}")
         
@@ -430,79 +423,13 @@ def remove_favorite(game_id: int):
         })
         
     except Exception as e:
-        db.session.rollback()
+        if 'user_repository' in locals():
+            user_repository.rollback()
         current_app.logger.error(f"お気に入り削除エラー: {e}")
         return jsonify({
             'success': False,
             'message': 'お気に入りの削除に失敗しました'
         }), 500
-
-
-# ヘルパー関数
-def _format_game_for_web_template(game_data) -> Dict[str, Any]:
-    """
-    ゲームデータをWebテンプレート用に整形
-    GameSearchServiceからのデータとGameモデルの両方に対応
-    
-    Args:
-        game_data: GameSearchServiceからの辞書データまたはGameモデルオブジェクト
-        
-    Returns:
-        Dict: 整形されたゲームデータ
-    """
-    # GameSearchServiceからの辞書データの場合
-    if isinstance(game_data, dict):
-        return {
-            'id': game_data.get('id'),
-            'title': game_data.get('title'),
-            'description': game_data.get('description'),
-            'developer': game_data.get('developer'),
-            'publisher': game_data.get('publisher'),
-            'release_date': game_data.get('release_date') or '',
-            'genres': game_data.get('genres', []),
-            'platforms': game_data.get('platforms', []),
-            'image_url': game_data.get('image_url') or 'https://via.placeholder.com/300x400',
-            'steam_url': game_data.get('steam_url'),
-            'steam_rating': game_data.get('steam_rating'),
-            'metacritic_score': game_data.get('metacritic_score'),
-            'current_price': game_data.get('current_price') or 0.0,
-            'original_price': game_data.get('original_price') or 0.0,
-            'discount_percent': game_data.get('discount_percent', 0),
-            'is_on_sale': game_data.get('discount_percent', 0) > 0,
-            'lowest_price': game_data.get('current_price') or 0.0,
-            'lowest_store': 'steam',
-            'prices': game_data.get('prices', {})
-        }
-
-    # Gameモデルオブジェクトの場合
-    return {
-        'id': game_data.id,
-        'title': game_data.title,
-        'description': game_data.description,
-        'developer': game_data.developer,
-        'publisher': game_data.publisher,
-        'release_date': game_data.release_date.strftime('%Y-%m-%d') if game_data.release_date else '',
-        'genres': game_data.genres.split(',') if isinstance(game_data.genres, str) and game_data.genres else (game_data.genres if isinstance(game_data.genres, list) else []),
-        'platforms': game_data.platforms.split(',') if isinstance(game_data.platforms, str) and game_data.platforms else (game_data.platforms if isinstance(game_data.platforms, list) else []),
-        'image_url': game_data.image_url or 'https://via.placeholder.com/300x400',
-        'steam_url': game_data.steam_url,
-        'steam_rating': game_data.steam_rating,
-        'metacritic_score': game_data.metacritic_score,
-        'current_price': float(game_data.current_price) if game_data.current_price else 0.0,
-        'original_price': float(game_data.original_price) if game_data.original_price else 0.0,
-        'discount_percent': game_data.discount_percent or 0,
-        'is_on_sale': (game_data.discount_percent or 0) > 0,
-        'lowest_price': float(game_data.current_price) if game_data.current_price else 0.0,
-        'lowest_store': 'steam',
-        'prices': {
-            'steam': {
-                'current': float(game_data.current_price) if game_data.current_price else 0.0,
-                'original': float(game_data.original_price) if game_data.original_price else 0.0,
-                'discount': game_data.discount_percent or 0,
-                'url': game_data.steam_url
-            }
-        }
-    }
 
 
 @main_bp.route('/about')
