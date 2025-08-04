@@ -144,9 +144,18 @@ class PriceRepository:
             
             # ゲーム情報を取得してEpic Games Store namespaceを確認
             game = self.session.query(Game).filter_by(id=game_id).first()
-            if game and getattr(game, 'epic_namespace', None):
-                epic_namespace = getattr(game, 'epic_namespace')
-                
+            epic_namespace = getattr(game, 'epic_namespace', None) if game else None
+            
+            # namespaceが未設定の場合、ゲーム名で検索して取得を試行
+            if game and not epic_namespace:
+                game_title = getattr(game, 'title', '')
+                print(f"[DEBUG] Epic namespaceが未設定です。ゲーム名で検索します: {game_title}")
+                # 一時的にEpic検索を無効化（検索機能の問題により）
+                print(f"[DEBUG] Epic検索機能は現在無効化されています")
+                epic_namespace = None
+                # epic_namespace = self._search_and_save_epic_namespace(game, game_title)
+            
+            if epic_namespace:
                 try:
                     # Epic Games Store APIから最新価格を取得
                     price_data = self.epic_service.get_game_price(epic_namespace)
@@ -185,10 +194,68 @@ class PriceRepository:
                     print(f"[DEBUG] Epic Games Store価格取得エラー: game_id={game_id}, error={e}")
                     self.session.rollback()
             else:
-                print(f"[DEBUG] Epic Games Store namespaceが設定されていません: game_id={game_id}")
+                print(f"[DEBUG] Epic Games Store namespaceが取得できませんでした: game_id={game_id}")
+        else:
+            print(f"[DEBUG] Epic Games Store価格データは最新です: game_id={game_id}, updated_at={getattr(epic_price, 'updated_at', None)}")
         
         # 最新の価格データを再取得して返す
         return self.get_latest_prices(game_id)
+
+    def _search_and_save_epic_namespace(self, game: Game, game_title: str) -> Optional[str]:
+        """
+        ゲーム名でEpic Games Storeを検索してnamespaceを取得し、Gameモデルに保存
+        
+        Args:
+            game: ゲームモデル
+            game_title: ゲームタイトル
+            
+        Returns:
+            Optional[str]: 見つかったnamespace（見つからない場合はNone）
+        """
+        try:
+            print(f"[DEBUG] Epic Games Storeでゲーム検索: '{game_title}'")
+            
+            # タイムアウトと例外処理を追加
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Epic Games Store 検索がタイムアウトしました")
+            
+            # 10秒でタイムアウト
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(10)
+            
+            try:
+                search_results = self.epic_service.search_games(game_title, limit=5)
+            finally:
+                signal.alarm(0)  # タイムアウトをクリア
+            
+            if not search_results:
+                print(f"[DEBUG] Epic Games Storeで検索結果が見つかりませんでした: '{game_title}'")
+                return None
+            
+            # 最初の結果を使用（通常は最も関連度の高い結果）
+            first_result = search_results[0]
+            epic_namespace = first_result.get('namespace')
+            
+            if epic_namespace:
+                # Gameモデルにnamespaceを保存
+                setattr(game, 'epic_namespace', epic_namespace)
+                
+                self.session.commit()
+                print(f"[DEBUG] Epic namespace保存成功: game_id={getattr(game, 'id')}, namespace={epic_namespace}")
+                return epic_namespace
+            else:
+                print(f"[DEBUG] 検索結果にnamespaceが含まれていませんでした: '{game_title}'")
+                return None
+                
+        except TimeoutError as e:
+            print(f"[DEBUG] Epic namespace検索タイムアウト: {e}")
+            return None
+        except Exception as e:
+            print(f"[DEBUG] Epic namespace検索エラー: {e}")
+            self.session.rollback()
+            return None
 
     def get_latest_prices(self, game_id: int) -> List[Price]:
         """

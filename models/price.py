@@ -149,7 +149,19 @@ class Price(db.Model):
                 if steam_appid:
                     return f"https://store.steampowered.com/app/{steam_appid}/"
         
-        # TODO: 他のストア（Epic Games Store等）のURL生成を追加
+        elif store == 'epic' and hasattr(self, 'game'):
+            game = getattr(self, 'game', None)
+            if game:
+                epic_namespace = getattr(game, 'epic_namespace', None)
+                if epic_namespace:
+                    # Epic Games StoreのURLは通常 https://store.epicgames.com/p/game-slug の形式
+                    # namespaceからproduct slugを推測するか、ゲームタイトルを使用
+                    game_title = getattr(game, 'title', '')
+                    # タイトルをslug形式に変換（簡易版）
+                    slug = game_title.lower().replace(' ', '-').replace(':', '').replace("'", '')
+                    return f"https://store.epicgames.com/p/{slug}"
+        
+        # TODO: 他のストアのURL生成を追加
         
         return None
     
