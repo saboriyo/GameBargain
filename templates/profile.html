@@ -3,227 +3,207 @@
 {% block title %}{{ user.discord_username }} のプロフィール - GameBargain{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mx-auto px-4 py-8">
     <!-- プロフィールヘッダー -->
-    <div class="profile-header mb-4">
-        <div class="row align-items-center">
-            <div class="col-md-2">
-                <div class="profile-avatar">
-                    <img src="{{ user.avatar_url or url_for('static', filename='images/default-avatar.png') }}" 
-                         alt="{{ user.discord_username }}" 
-                         class="rounded-circle img-fluid shadow"
-                         style="width: 120px; height: 120px; object-fit: cover;">
-                </div>
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex items-center">
+            <div class="flex-shrink-0 mr-6">
+                <img src="{{ user.avatar_url or url_for('static', filename='images/default-avatar.png') }}" 
+                     alt="{{ user.discord_username }}" 
+                     class="w-24 h-24 rounded-full object-cover shadow-lg">
             </div>
-            <div class="col-md-6">
-                <h1 class="display-6 mb-2">{{ user.discord_username }}</h1>
-                <div class="text-muted mb-2">
-                    <i class="bi bi-calendar-plus me-2"></i>
+            <div class="flex-1">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ user.discord_username }}</h1>
+                <div class="text-gray-600 mb-4">
+                    <i class="fas fa-calendar-plus mr-2"></i>
                     {{ user.created_at.strftime('%Y年%m月') }}から利用
                 </div>
-                <div class="d-flex gap-3">
-                    <span class="badge bg-primary fs-6">
-                        <i class="bi bi-heart-fill me-1"></i>
+                <div class="flex space-x-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        <i class="fas fa-heart mr-1"></i>
                         お気に入り {{ favorites|length }}件
                     </span>
-                    <span class="badge bg-info fs-6">
-                        <i class="bi bi-bell-fill me-1"></i>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-cyan-100 text-cyan-800">
+                        <i class="fas fa-bell mr-1"></i>
                         アラート {{ alerts|length }}件
                     </span>
                 </div>
             </div>
-            <div class="col-md-4 text-end">
-                {% if current_user.id == user.id %}
-                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                    <i class="bi bi-gear me-2"></i>設定
+            {% if current_user.id == user.id %}
+            <div class="flex-shrink-0">
+                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors" 
+                        onclick="openSettingsModal()">
+                    <i class="fas fa-cog mr-2"></i>設定
                 </button>
-                {% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
 
     <!-- 統計情報 -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <i class="bi bi-heart-fill text-danger fs-1"></i>
-                    <h4 class="card-title mt-2">{{ favorites|length }}</h4>
-                    <p class="card-text text-muted">お気に入りゲーム</p>
-                </div>
-            </div>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-md p-6 text-center">
+            <i class="fas fa-heart text-red-500 text-4xl mb-4"></i>
+            <h4 class="text-2xl font-bold text-gray-900">{{ favorites|length }}</h4>
+            <p class="text-gray-600">お気に入りゲーム</p>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <i class="bi bi-bell-fill text-warning fs-1"></i>
-                    <h4 class="card-title mt-2">{{ alerts|length }}</h4>
-                    <p class="card-text text-muted">価格アラート</p>
-                </div>
-            </div>
+        <div class="bg-white rounded-lg shadow-md p-6 text-center">
+            <i class="fas fa-bell text-yellow-500 text-4xl mb-4"></i>
+            <h4 class="text-2xl font-bold text-gray-900">{{ alerts|length }}</h4>
+            <p class="text-gray-600">価格アラート</p>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <i class="bi bi-piggy-bank-fill text-success fs-1"></i>
-                    <h4 class="card-title mt-2">¥{{ "{:,}".format(total_savings|int) }}</h4>
-                    <p class="card-text text-muted">節約金額</p>
-                </div>
-            </div>
+        <div class="bg-white rounded-lg shadow-md p-6 text-center">
+            <i class="fas fa-piggy-bank text-green-500 text-4xl mb-4"></i>
+            <h4 class="text-2xl font-bold text-gray-900">¥{{ "{:,}".format(total_savings|int) }}</h4>
+            <p class="text-gray-600">節約金額</p>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <i class="bi bi-graph-up text-primary fs-1"></i>
-                    <h4 class="card-title mt-2">{{ total_deals }}</h4>
-                    <p class="card-text text-muted">発見したセール</p>
-                </div>
-            </div>
+        <div class="bg-white rounded-lg shadow-md p-6 text-center">
+            <i class="fas fa-chart-line text-blue-500 text-4xl mb-4"></i>
+            <h4 class="text-2xl font-bold text-gray-900">{{ total_deals }}</h4>
+            <p class="text-gray-600">発見したセール</p>
         </div>
     </div>
 
     <!-- タブナビゲーション -->
-    <ul class="nav nav-tabs" id="profileTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="favorites-tab" data-bs-toggle="tab" data-bs-target="#favorites" type="button">
-                <i class="bi bi-heart-fill me-2"></i>お気に入り ({{ favorites|length }})
+    <div class="border-b border-gray-200 mb-8">
+        <nav class="-mb-px flex space-x-8">
+            <button class="tab-button active py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600" 
+                    onclick="showTab('favorites')">
+                <i class="fas fa-heart mr-2"></i>お気に入り ({{ favorites|length }})
             </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="alerts-tab" data-bs-toggle="tab" data-bs-target="#alerts" type="button">
-                <i class="bi bi-bell-fill me-2"></i>価格アラート ({{ alerts|length }})
+            <button class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700" 
+                    onclick="showTab('alerts')">
+                <i class="fas fa-bell mr-2"></i>価格アラート ({{ alerts|length }})
             </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button">
-                <i class="bi bi-clock-history me-2"></i>アクティビティ
+            <button class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700" 
+                    onclick="showTab('activity')">
+                <i class="fas fa-clock mr-2"></i>アクティビティ
             </button>
-        </li>
-        {% if current_user.id == user.id %}
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button">
-                <i class="bi bi-envelope-fill me-2"></i>通知設定
+            {% if current_user.id == user.id %}
+            <button class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700" 
+                    onclick="showTab('notifications')">
+                <i class="fas fa-envelope mr-2"></i>通知設定
             </button>
-        </li>
-        {% endif %}
-    </ul>
+            {% endif %}
+        </nav>
+    </div>
 
     <!-- タブコンテンツ -->
-    <div class="tab-content mt-4" id="profileTabsContent">
+    <div id="tab-content">
         <!-- お気に入りタブ -->
-        <div class="tab-pane fade show active" id="favorites" role="tabpanel">
+        <div id="favorites-tab" class="tab-pane active">
             {% if favorites %}
-            <div class="row">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {% for favorite in favorites %}
-                <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
-                    <div class="card h-100 game-card">
-                        <div class="position-relative">
-                            <img src="{{ favorite.game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
-                                 class="card-img-top game-image" 
-                                 alt="{{ favorite.game.title }}">
-                            
-                            <!-- 価格変動インジケーター -->
-                            {% if favorite.price_change %}
-                            <div class="price-change-badge {{ 'price-down' if favorite.price_change < 0 else 'price-up' }}">
-                                {% if favorite.price_change < 0 %}
-                                <i class="bi bi-arrow-down"></i>
-                                {% else %}
-                                <i class="bi bi-arrow-up"></i>
-                                {% endif %}
-                                {{ "%.0f"|format(favorite.price_change|abs) }}%
-                            </div>
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div class="relative">
+                        <img src="{{ favorite.game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
+                             class="w-full h-48 object-cover" 
+                             alt="{{ favorite.game.title }}">
+                        
+                        <!-- 価格変動インジケーター -->
+                        {% if favorite.price_change %}
+                        <div class="absolute top-2 left-2 px-2 py-1 rounded text-xs font-medium {{ 'bg-green-100 text-green-800' if favorite.price_change < 0 else 'bg-red-100 text-red-800' }}">
+                            {% if favorite.price_change < 0 %}
+                            <i class="fas fa-arrow-down"></i>
+                            {% else %}
+                            <i class="fas fa-arrow-up"></i>
                             {% endif %}
-
-                            <button class="btn btn-sm btn-danger favorite-btn favorited position-absolute top-0 end-0 m-2" 
-                                    data-game-id="{{ favorite.game.id }}"
-                                    data-bs-toggle="tooltip" 
-                                    title="お気に入りから削除">
-                                <i class="bi bi-heart-fill"></i>
-                            </button>
+                            {{ "%.0f"|format(favorite.price_change|abs) }}%
                         </div>
+                        {% endif %}
 
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title">{{ favorite.game.title }}</h5>
-                            
-                            {% if favorite.game.lowest_price %}
-                            <div class="price-info mb-2">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span class="fs-5 fw-bold text-success">¥{{ "{:,}".format(favorite.game.lowest_price.price|int) }}</span>
-                                    <span class="store-badge store-{{ favorite.game.lowest_price.store }}">{{ favorite.game.lowest_price.store|upper }}</span>
-                                </div>
-                            </div>
-                            {% endif %}
+                        <button class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors favorite-btn" 
+                                data-game-id="{{ favorite.game.id }}"
+                                title="お気に入りから削除">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
 
-                            <small class="text-muted mb-2">
-                                <i class="bi bi-heart-fill me-1"></i>
-                                {{ favorite.added_at.strftime('%Y年%m月%d日') }}に追加
-                            </small>
-
-                            <div class="mt-auto">
-                                <a href="{{ url_for('main.game_detail', game_id=favorite.game.id) }}" 
-                                   class="btn btn-primary btn-sm w-100">詳細を見る</a>
+                    <div class="p-4">
+                        <h5 class="font-semibold text-gray-900 mb-2">{{ favorite.game.title }}</h5>
+                        
+                        {% if favorite.game.lowest_price %}
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xl font-bold text-green-600">¥{{ "{:,}".format(favorite.game.lowest_price.price|int) }}</span>
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                    {{ favorite.game.lowest_price.store|upper }}
+                                </span>
                             </div>
                         </div>
+                        {% endif %}
+
+                        <div class="text-sm text-gray-500 mb-4">
+                            <i class="fas fa-heart mr-1"></i>
+                            {{ favorite.added_at.strftime('%Y年%m月%d日') }}に追加
+                        </div>
+
+                        <a href="{{ url_for('main.game_detail', game_id=favorite.game.id) }}" 
+                           class="block w-full bg-blue-500 hover:bg-blue-600 text-white text-center py-2 px-4 rounded transition-colors">
+                            詳細を見る
+                        </a>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-5">
-                <i class="bi bi-heart display-1 text-muted"></i>
-                <h4 class="mt-3">お気に入りのゲームがありません</h4>
-                <p class="text-muted">ゲームをお気に入りに追加して価格をチェックしましょう</p>
-                <a href="{{ url_for('main.search') }}" class="btn btn-primary">ゲームを探す</a>
+            <div class="text-center py-12">
+                <i class="fas fa-heart text-gray-400 text-6xl mb-4"></i>
+                <h4 class="text-xl font-semibold text-gray-900 mb-2">お気に入りのゲームがありません</h4>
+                <p class="text-gray-600 mb-6">ゲームをお気に入りに追加して価格をチェックしましょう</p>
+                <a href="{{ url_for('main.search') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors">
+                    ゲームを探す
+                </a>
             </div>
             {% endif %}
         </div>
 
         <!-- 価格アラートタブ -->
-        <div class="tab-pane fade" id="alerts" role="tabpanel">
+        <div id="alerts-tab" class="tab-pane hidden">
             {% if alerts %}
-            <div class="list-group">
+            <div class="space-y-4">
                 {% for alert in alerts %}
-                <div class="list-group-item">
-                    <div class="row align-items-center">
-                        <div class="col-md-2">
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 mr-4">
                             <img src="{{ alert.game.image_url or url_for('static', filename='images/default-game.jpg') }}" 
-                                 class="img-fluid rounded" 
-                                 alt="{{ alert.game.title }}"
-                                 style="max-height: 80px;">
+                                 class="w-16 h-16 rounded object-cover" 
+                                 alt="{{ alert.game.title }}">
                         </div>
-                        <div class="col-md-4">
-                            <h5 class="mb-1">{{ alert.game.title }}</h5>
-                            <small class="text-muted">
+                        <div class="flex-1">
+                            <h5 class="font-semibold text-gray-900 mb-1">{{ alert.game.title }}</h5>
+                            <div class="text-sm text-gray-500">
                                 アラート設定: {{ alert.created_at.strftime('%Y年%m月%d日') }}
-                            </small>
-                        </div>
-                        <div class="col-md-2 text-center">
-                            <div class="price-threshold">
-                                <strong>目標価格</strong>
-                                <div class="fs-5 text-primary">¥{{ "{:,}".format(alert.threshold_price|int) }}</div>
                             </div>
                         </div>
-                        <div class="col-md-2 text-center">
+                        <div class="text-center mx-4">
+                            <div class="text-sm font-medium text-gray-900">目標価格</div>
+                            <div class="text-lg font-bold text-blue-600">¥{{ "{:,}".format(alert.threshold_price|int) }}</div>
+                        </div>
+                        <div class="text-center mx-4">
                             {% if alert.game.lowest_price %}
-                            <div class="current-price">
-                                <strong>現在価格</strong>
-                                <div class="fs-5 {{ 'text-success' if alert.game.lowest_price.price <= alert.threshold_price else 'text-muted' }}">
-                                    ¥{{ "{:,}".format(alert.game.lowest_price.price|int) }}
-                                </div>
-                                {% if alert.game.lowest_price.price <= alert.threshold_price %}
-                                <span class="badge bg-success">目標到達！</span>
-                                {% endif %}
+                            <div class="text-sm font-medium text-gray-900">現在価格</div>
+                            <div class="text-lg font-bold {{ 'text-green-600' if alert.game.lowest_price.price <= alert.threshold_price else 'text-gray-600' }}">
+                                ¥{{ "{:,}".format(alert.game.lowest_price.price|int) }}
                             </div>
+                            {% if alert.game.lowest_price.price <= alert.threshold_price %}
+                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                目標到達！
+                            </span>
+                            {% endif %}
                             {% endif %}
                         </div>
-                        <div class="col-md-2">
-                            <div class="d-grid gap-1">
+                        <div class="flex-shrink-0 ml-4">
+                            <div class="space-y-2">
                                 <a href="{{ url_for('main.game_detail', game_id=alert.game.id) }}" 
-                                   class="btn btn-primary btn-sm">詳細を見る</a>
+                                   class="block bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                                    詳細を見る
+                                </a>
                                 {% if current_user.id == user.id %}
-                                <button class="btn btn-outline-danger btn-sm delete-alert-btn" 
+                                <button class="block w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm transition-colors delete-alert-btn" 
                                         data-alert-id="{{ alert.id }}">
-                                    <i class="bi bi-trash me-1"></i>削除
+                                    <i class="fas fa-trash mr-1"></i>削除
                                 </button>
                                 {% endif %}
                             </div>
@@ -233,125 +213,139 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-5">
-                <i class="bi bi-bell display-1 text-muted"></i>
-                <h4 class="mt-3">価格アラートが設定されていません</h4>
-                <p class="text-muted">ゲームの価格が下がったら通知を受け取りましょう</p>
-                <a href="{{ url_for('main.search') }}" class="btn btn-primary">ゲームを探す</a>
+            <div class="text-center py-12">
+                <i class="fas fa-bell text-gray-400 text-6xl mb-4"></i>
+                <h4 class="text-xl font-semibold text-gray-900 mb-2">価格アラートが設定されていません</h4>
+                <p class="text-gray-600 mb-6">ゲームの価格が下がったら通知を受け取りましょう</p>
+                <a href="{{ url_for('main.search') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors">
+                    ゲームを探す
+                </a>
             </div>
             {% endif %}
         </div>
 
         <!-- アクティビティタブ -->
-        <div class="tab-pane fade" id="activity" role="tabpanel">
+        <div id="activity-tab" class="tab-pane hidden">
             {% if activities %}
-            <div class="activity-timeline">
+            <div class="space-y-4">
                 {% for activity in activities %}
-                <div class="activity-item">
-                    <div class="activity-icon {{ activity.type }}">
-                        {% if activity.type == 'favorite_added' %}
-                        <i class="bi bi-heart-fill"></i>
-                        {% elif activity.type == 'alert_created' %}
-                        <i class="bi bi-bell-fill"></i>
-                        {% elif activity.type == 'deal_found' %}
-                        <i class="bi bi-tag-fill"></i>
-                        {% endif %}
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-text">
-                            {% if activity.type == 'favorite_added' %}
-                            <strong>{{ activity.game.title }}</strong> をお気に入りに追加しました
-                            {% elif activity.type == 'alert_created' %}
-                            <strong>{{ activity.game.title }}</strong> の価格アラートを設定しました（¥{{ "{:,}".format(activity.threshold_price|int) }}）
-                            {% elif activity.type == 'deal_found' %}
-                            <strong>{{ activity.game.title }}</strong> で{{ activity.discount_percent }}%オフのセールを発見
-                            {% endif %}
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 mr-4">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center {{ 'bg-red-100 text-red-600' if activity.type == 'favorite_added' else 'bg-yellow-100 text-yellow-600' if activity.type == 'alert_created' else 'bg-green-100 text-green-600' }}">
+                                {% if activity.type == 'favorite_added' %}
+                                <i class="fas fa-heart"></i>
+                                {% elif activity.type == 'alert_created' %}
+                                <i class="fas fa-bell"></i>
+                                {% elif activity.type == 'deal_found' %}
+                                <i class="fas fa-tag"></i>
+                                {% endif %}
+                            </div>
                         </div>
-                        <small class="text-muted">{{ activity.created_at.strftime('%Y年%m月%d日 %H:%M') }}</small>
+                        <div class="flex-1">
+                            <div class="text-sm text-gray-900">
+                                {% if activity.type == 'favorite_added' %}
+                                <strong>{{ activity.game.title }}</strong> をお気に入りに追加しました
+                                {% elif activity.type == 'alert_created' %}
+                                <strong>{{ activity.game.title }}</strong> の価格アラートを設定しました（¥{{ "{:,}".format(activity.threshold_price|int) }}）
+                                {% elif activity.type == 'deal_found' %}
+                                <strong>{{ activity.game.title }}</strong> で{{ activity.discount_percent }}%オフのセールを発見
+                                {% endif %}
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                {{ activity.created_at.strftime('%Y年%m月%d日 %H:%M') }}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-5">
-                <i class="bi bi-clock-history display-1 text-muted"></i>
-                <h4 class="mt-3">アクティビティがありません</h4>
-                <p class="text-muted">ゲームをお気に入りに追加したり、価格アラートを設定したりしてみましょう</p>
+            <div class="text-center py-12">
+                <i class="fas fa-clock text-gray-400 text-6xl mb-4"></i>
+                <h4 class="text-xl font-semibold text-gray-900 mb-2">アクティビティがありません</h4>
+                <p class="text-gray-600">ゲームをお気に入りに追加したり、価格アラートを設定したりしてみましょう</p>
             </div>
             {% endif %}
         </div>
 
         <!-- 通知設定タブ -->
         {% if current_user.id == user.id %}
-        <div class="tab-pane fade" id="notifications" role="tabpanel">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">通知設定</h5>
+        <div id="notifications-tab" class="tab-pane hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow-md">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h5 class="text-lg font-semibold text-gray-900">通知設定</h5>
                         </div>
-                        <div class="card-body">
-                            <form id="notificationSettingsForm">
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="emailNotifications" 
+                        <div class="p-6">
+                            <form id="notificationSettingsForm" class="space-y-6">
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="emailNotifications" 
+                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                            {{ 'checked' if user.email_notifications else '' }}>
-                                    <label class="form-check-label" for="emailNotifications">
-                                        <strong>メール通知</strong>
-                                        <div class="text-muted small">価格アラートの通知をメールで受け取る</div>
+                                    <label for="emailNotifications" class="ml-3">
+                                        <div class="text-sm font-medium text-gray-900">メール通知</div>
+                                        <div class="text-sm text-gray-500">価格アラートの通知をメールで受け取る</div>
                                     </label>
                                 </div>
 
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="discordNotifications" 
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="discordNotifications" 
+                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                            {{ 'checked' if user.discord_notifications else '' }}>
-                                    <label class="form-check-label" for="discordNotifications">
-                                        <strong>Discord通知</strong>
-                                        <div class="text-muted small">価格アラートの通知をDiscordで受け取る</div>
+                                    <label for="discordNotifications" class="ml-3">
+                                        <div class="text-sm font-medium text-gray-900">Discord通知</div>
+                                        <div class="text-sm text-gray-500">価格アラートの通知をDiscordで受け取る</div>
                                     </label>
                                 </div>
 
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="weeklyDigest" 
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="weeklyDigest" 
+                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                            {{ 'checked' if user.weekly_digest else '' }}>
-                                    <label class="form-check-label" for="weeklyDigest">
-                                        <strong>週間ダイジェスト</strong>
-                                        <div class="text-muted small">お気に入りゲームの価格変動を週1回まとめて通知</div>
+                                    <label for="weeklyDigest" class="ml-3">
+                                        <div class="text-sm font-medium text-gray-900">週間ダイジェスト</div>
+                                        <div class="text-sm text-gray-500">お気に入りゲームの価格変動を週1回まとめて通知</div>
                                     </label>
                                 </div>
 
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="dealAlerts" 
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="dealAlerts" 
+                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                            {{ 'checked' if user.deal_alerts else '' }}>
-                                    <label class="form-check-label" for="dealAlerts">
-                                        <strong>セール情報</strong>
-                                        <div class="text-muted small">お気に入りゲームのセール情報を通知</div>
+                                    <label for="dealAlerts" class="ml-3">
+                                        <div class="text-sm font-medium text-gray-900">セール情報</div>
+                                        <div class="text-sm text-gray-500">お気に入りゲームのセール情報を通知</div>
                                     </label>
                                 </div>
 
-                                <button type="submit" class="btn btn-primary">設定を保存</button>
+                                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors">
+                                    設定を保存
+                                </button>
                             </form>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">アカウント連携</h6>
+                <div>
+                    <div class="bg-white rounded-lg shadow-md">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h6 class="text-lg font-semibold text-gray-900">アカウント連携</h6>
                         </div>
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <i class="bi bi-discord text-primary fs-4 me-3"></i>
+                        <div class="p-6">
+                            <div class="flex items-center mb-4">
+                                <i class="fab fa-discord text-blue-500 text-2xl mr-3"></i>
                                 <div>
-                                    <strong>Discord</strong>
-                                    <div class="text-success small">
-                                        <i class="bi bi-check-circle me-1"></i>連携済み
+                                    <div class="font-medium text-gray-900">Discord</div>
+                                    <div class="text-sm text-green-600">
+                                        <i class="fas fa-check-circle mr-1"></i>連携済み
                                     </div>
                                 </div>
                             </div>
                             
-                            <small class="text-muted">
+                            <div class="text-sm text-gray-500">
                                 連携解除する場合は、お問い合わせください。
-                            </small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -363,35 +357,44 @@
 
 <!-- 設定モーダル -->
 {% if current_user.id == user.id %}
-<div class="modal fade" id="settingsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">プロフィール設定</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div id="settingsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">プロフィール設定</h3>
+                <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <div class="modal-body">
-                <form id="profileSettingsForm">
-                    <div class="mb-3">
-                        <label for="displayName" class="form-label">表示名</label>
-                        <input type="text" class="form-control" id="displayName" 
-                               value="{{ user.discord_username }}" readonly>
-                        <div class="form-text">表示名はDiscordアカウントに基づきます</div>
-                    </div>
+            <form id="profileSettingsForm" class="space-y-4">
+                <div>
+                    <label for="displayName" class="block text-sm font-medium text-gray-700">表示名</label>
+                    <input type="text" id="displayName" 
+                           value="{{ user.discord_username }}" 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                           readonly>
+                    <div class="text-xs text-gray-500 mt-1">表示名はDiscordアカウントに基づきます</div>
+                </div>
 
-                    <div class="mb-3">
-                        <label for="profilePrivacy" class="form-label">プロフィール公開設定</label>
-                        <select class="form-select" id="profilePrivacy">
-                            <option value="public" {{ 'selected' if user.profile_public else '' }}>公開</option>
-                            <option value="private" {{ 'selected' if not user.profile_public else '' }}>非公開</option>
-                        </select>
-                        <div class="form-text">非公開にするとプロフィールページが他のユーザーに表示されません</div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                <button type="button" class="btn btn-primary" id="saveProfileSettings">保存</button>
+                <div>
+                    <label for="profilePrivacy" class="block text-sm font-medium text-gray-700">プロフィール公開設定</label>
+                    <select id="profilePrivacy" 
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="public" {{ 'selected' if user.profile_public else '' }}>公開</option>
+                        <option value="private" {{ 'selected' if not user.profile_public else '' }}>非公開</option>
+                    </select>
+                    <div class="text-xs text-gray-500 mt-1">非公開にするとプロフィールページが他のユーザーに表示されません</div>
+                </div>
+            </form>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button onclick="closeSettingsModal()" 
+                        class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg transition-colors">
+                    キャンセル
+                </button>
+                <button onclick="saveProfileSettings()" 
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    保存
+                </button>
             </div>
         </div>
     </div>
@@ -401,6 +404,42 @@
 
 {% block scripts %}
 <script>
+// タブ切り替え機能
+function showTab(tabName) {
+    // すべてのタブを非表示
+    document.querySelectorAll('.tab-pane').forEach(tab => {
+        tab.classList.add('hidden');
+        tab.classList.remove('active');
+    });
+    
+    // すべてのタブボタンのスタイルをリセット
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    // 選択されたタブを表示
+    const selectedTab = document.getElementById(tabName + '-tab');
+    if (selectedTab) {
+        selectedTab.classList.remove('hidden');
+        selectedTab.classList.add('active');
+    }
+    
+    // 選択されたタブボタンのスタイルを更新
+    const selectedButton = event.target;
+    selectedButton.classList.add('active', 'border-blue-500', 'text-blue-600');
+    selectedButton.classList.remove('border-transparent', 'text-gray-500');
+}
+
+// モーダル機能
+function openSettingsModal() {
+    document.getElementById('settingsModal').classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+    document.getElementById('settingsModal').classList.add('hidden');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // アラート削除機能
     const deleteAlertBtns = document.querySelectorAll('.delete-alert-btn');
@@ -409,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const alertId = this.dataset.alertId;
             
             if (confirm('この価格アラートを削除してもよろしいですか？')) {
-                deleteAlert(alertId, this.closest('.list-group-item'));
+                deleteAlert(alertId, this.closest('.bg-white'));
             }
         });
     });
@@ -420,15 +459,6 @@ document.addEventListener('DOMContentLoaded', function() {
         notificationForm.addEventListener('submit', function(e) {
             e.preventDefault();
             saveNotificationSettings();
-        });
-    }
-
-    // プロフィール設定フォーム
-    const profileForm = document.getElementById('profileSettingsForm');
-    const saveProfileBtn = document.getElementById('saveProfileSettings');
-    if (saveProfileBtn) {
-        saveProfileBtn.addEventListener('click', function() {
-            saveProfileSettings();
         });
     }
 });
@@ -444,8 +474,6 @@ async function deleteAlert(alertId, element) {
         if (response.success) {
             element.remove();
             GameBargain.showToast('価格アラートを削除しました', 'success');
-            
-            // カウンターの更新
             updateAlertCount(-1);
         } else {
             GameBargain.showToast(response.message || '削除に失敗しました', 'error');
@@ -496,7 +524,7 @@ async function saveProfileSettings() {
 
         if (response.success) {
             GameBargain.showToast('プロフィール設定を保存しました', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+            closeSettingsModal();
         } else {
             GameBargain.showToast(response.message || '保存に失敗しました', 'error');
         }
@@ -508,8 +536,8 @@ async function saveProfileSettings() {
 
 // カウンター更新
 function updateAlertCount(change) {
-    const alertTab = document.getElementById('alerts-tab');
-    const alertBadge = document.querySelector('.badge.bg-info');
+    const alertTab = document.querySelector('[onclick="showTab(\'alerts\')"]');
+    const alertBadge = document.querySelector('.bg-cyan-100');
     
     if (alertTab && alertBadge) {
         const match = alertTab.textContent.match(/\((\d+)\)/);

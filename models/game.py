@@ -34,11 +34,12 @@ class Game(db.Model):
     
     # プラットフォーム固有ID
     steam_appid = Column(String(20), nullable=True, unique=True, index=True, comment='Steam App ID')
-    epic_game_id = Column(String(50), nullable=True, unique=True, index=True, comment='Epic Games Store ID')
+    epic_namespace = Column(String(100), nullable=True, unique=True, index=True, comment='Epic Games Store Namespace')
     
     # メディア情報
     image_url = Column(String(255), nullable=True, comment='ゲーム画像URL')
     steam_url = Column(String(500), nullable=True, comment='Steam商品ページURL')
+    epic_url = Column(String(500), nullable=True, comment='Epic Games Store商品ページURL')
     
     # 詳細情報
     description = Column(Text, nullable=True, comment='ゲーム説明')
@@ -64,6 +65,21 @@ class Game(db.Model):
     def __repr__(self):
         return f'<Game {self.title}>'
     
+    def __init__(self, **kwargs):
+        """初期化時にNULL IDを防ぐ"""
+        super().__init__(**kwargs)
+        # 新規作成時はIDをNoneに設定（データベースで自動生成）
+        if 'id' not in kwargs:
+            self.id = None
+    
+    def validate(self):
+        """バリデーション（NULL IDチェック）"""
+        if self.id is not None and self.id <= 0:
+            raise ValueError("ゲームIDは正の整数である必要があります")
+        
+        if not self.title:
+            raise ValueError("ゲームタイトルは必須です")
+    
     def to_dict(self):
         """辞書形式に変換"""
         return {
@@ -73,11 +89,13 @@ class Game(db.Model):
             'developer': self.developer,
             'publisher': self.publisher,
             'steam_appid': self.steam_appid,
-            'epic_game_id': self.epic_game_id,
+            'epic_namespace': self.epic_namespace,
             'image_url': self.image_url,
             'steam_url': self.steam_url,
+            'epic_url': self.epic_url,
             'description': self.description,
             'genres': getattr(self, 'genres', None),
+            'platforms': getattr(self, 'platforms', None),
             'release_date': getattr(self, 'release_date').isoformat() if getattr(self, 'release_date') else None,
             'steam_rating': float(getattr(self, 'steam_rating')) if getattr(self, 'steam_rating') is not None else None,
             'metacritic_score': self.metacritic_score,
